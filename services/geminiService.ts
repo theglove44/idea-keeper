@@ -1,15 +1,28 @@
 import { GoogleGenAI } from "@google/genai";
 import { Idea, Card } from '../types';
 
-const API_KEY = process.env.API_KEY;
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-if (!API_KEY) {
-    console.error("Gemini API key not found in environment variables. The app may not function correctly.");
+let ai: GoogleGenAI | null = null;
+
+if (GEMINI_API_KEY) {
+    ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+} else {
+    console.warn("VITE_GEMINI_API_KEY is missing; AI suggestions will be disabled.");
 }
 
-const ai = new GoogleGenAI({ apiKey: API_KEY! });
+const ensureAiAvailable = (): GoogleGenAI | null => {
+    if (!ai) {
+        console.warn("Attempted to call Gemini services without an API key.");
+    }
+    return ai;
+};
 
 export const getBrainstormSuggestions = async (idea: Idea): Promise<string> => {
+    const aiClient = ensureAiAvailable();
+    if (!aiClient) {
+        return "Gemini API key missing; enable `VITE_GEMINI_API_KEY` to receive AI suggestions.";
+    }
     const model = 'gemini-2.5-flash';
 
     const allCards = idea.columns.flatMap(column => 
@@ -33,7 +46,7 @@ export const getBrainstormSuggestions = async (idea: Idea): Promise<string> => {
     `;
 
     try {
-        const response = await ai.models.generateContent({
+        const response = await aiClient.models.generateContent({
             model: model,
             contents: prompt,
         });
@@ -45,6 +58,10 @@ export const getBrainstormSuggestions = async (idea: Idea): Promise<string> => {
 };
 
 export const getCardBrainstormSuggestions = async (idea: Idea, card: Card): Promise<string> => {
+    const aiClient = ensureAiAvailable();
+    if (!aiClient) {
+        return "Gemini API key missing; enable `VITE_GEMINI_API_KEY` to receive AI suggestions.";
+    }
     const model = 'gemini-2.5-flash';
     
     const prompt = `
@@ -68,7 +85,7 @@ export const getCardBrainstormSuggestions = async (idea: Idea, card: Card): Prom
     `;
 
     try {
-        const response = await ai.models.generateContent({
+        const response = await aiClient.models.generateContent({
             model: model,
             contents: prompt,
         });
