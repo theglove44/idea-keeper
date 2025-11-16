@@ -9,6 +9,7 @@ type IdeaDetailProps = {
   onStartEdit: (idea: Idea) => void;
   onMoveCard: (cardId: string, sourceColumnId: string, destColumnId: string, ideaId: string) => void;
   onEditCard: (cardId: string, newText: string, ideaId: string) => void;
+  onOpenCardDetail: (ideaId: string, ideaTitle: string, columnId: string, columnTitle: string, card: Card) => void;
 };
 
 type DragInfo = {
@@ -16,7 +17,7 @@ type DragInfo = {
   sourceColumnId: string;
 } | null;
 
-const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, onMoveCard, onEditCard }) => {
+const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, onMoveCard, onEditCard, onOpenCardDetail }) => {
   const [newCardText, setNewCardText] = useState('');
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
@@ -108,6 +109,12 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
     setIsCardAILoading(false);
   };
 
+  const handleCardClick = (card: Card, column: Column) => {
+    if (!idea) return;
+    if (editingCardId === card.id) return;
+    onOpenCardDetail(idea.id, idea.title, column.id, column.title, card);
+  };
+
   const handleCloseCardBrainstorm = () => {
     setBrainstormingCard(null);
     setBrainstormResult(null);
@@ -171,6 +178,7 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                          key={card.id} 
                          draggable={editingCardId !== card.id}
                          onDragStart={(e) => onDragStart(e, card, column.id)}
+                         onClick={() => handleCardClick(card, column)}
                          className={`relative group p-3 bg-slate-700/70 border border-slate-600/50 rounded-lg shadow-md hover:shadow-lg hover:bg-slate-700 transition-all duration-300 ease-in-out ${editingCardId !== card.id ? 'cursor-grab active:cursor-grabbing' : ''} animate-card-enter ${
                             dragInfo?.cardId === card.id ? 'opacity-40 scale-105 -rotate-3 ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-800' : ''
                          }`}
@@ -200,14 +208,20 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                                 <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">{card.text}</p>
                                 <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                     <button
-                                        onClick={() => handleCardBrainstorm(card)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleCardBrainstorm(card);
+                                        }}
                                         className="p-1.5 rounded-full text-slate-400 bg-slate-700/50 hover:text-yellow-300 hover:bg-slate-600 transition-all"
                                         aria-label="Brainstorm on card"
                                     >
                                         <Icon name="sparkles" className="w-3 h-3" />
                                     </button>
                                     <button
-                                        onClick={() => handleStartEditingCard(card)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStartEditingCard(card);
+                                        }}
                                         className="p-1.5 rounded-full text-slate-400 bg-slate-700/50 hover:text-slate-100 hover:bg-slate-600 transition-all"
                                         aria-label="Edit card"
                                     >

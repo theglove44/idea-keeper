@@ -1,0 +1,16 @@
+{
+  "id": "MI-2025-11-16-1015-ISSUE",
+  "ideaId": "global",
+  "ideaTitle": "All Ideas",
+  "columnId": "any",
+  "columnTitle": "Any Column",
+  "cardId": "any",
+  "cardText": "Card opens into detail modal",
+  "summary": "Card detail modal fails to load card comments table",
+  "details": "Clicking into any card now shows a red banner error `Could not find the table 'public.card_comments' in the schema cache`. The Supabase project is missing the card_comments table that backs the new chat feature. Create the table (id UUID default uuid_generate_v4, card_id UUID FK to cards, body text, author text, created_at timestamptz default now) and refresh the schema cache, or disable comment fetching until table exists.",
+  "severity": "high",
+  "createdAt": "2025-11-16T10:15:00.000Z",
+  "resolution": "Added database/card_comments.sql migration for Supabase and surfaced a friendly in-app error instructing operators to run it when the table is missing.",
+  "resolvedAt": "2025-11-16T10:25:00.000Z",
+  "status": "closed"
+}

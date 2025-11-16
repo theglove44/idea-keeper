@@ -1,0 +1,21 @@
+{
+  "id": "MI-2025-11-16-1030-MISSING-COMMENTS",
+  "ideaId": "global",
+  "ideaTitle": "All Ideas",
+  "columnId": "any",
+  "columnTitle": "Any Column",
+  "cardId": "any",
+  "cardText": "Card detail modal",
+  "summary": "UI still warns that card_comments table is missing",
+  "details": "When selecting any card, the new inline warning `Supabase table \"card_comments\" is missing. Run the SQL in database/card_comments.sql against your project and refresh the schema.` appears beneath the modal title. This indicates the migration has not yet been applied to the Supabase project, so comments cannot load.",
+  "severity": "medium",
+  "createdAt": "2025-11-16T10:30:00.000Z",
+  "plan": [
+    "Run the SQL script at database/card_comments.sql against the Supabase project (via SQL editor or migration) to create the public.card_comments table and index.",
+    "Refresh Supabase schema cache (Database -> Replication -> Refresh schema) so the new table is visible to the API.",
+    "Re-open several cards in Idea Keeper to confirm the warning disappears and comments load; document completion in this report."
+  ],
+  "resolution": "Applied database/card_comments.sql in Supabase, refreshed the schema cache, and verified that selecting cards no longer shows the missing-table warning.",
+  "resolvedAt": "2025-11-16T10:45:00.000Z",
+  "status": "closed"
+}

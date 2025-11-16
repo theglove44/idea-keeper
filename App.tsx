@@ -4,6 +4,7 @@ import { Idea, Card } from './types';
 import Sidebar from './components/Sidebar';
 import IdeaDetail from './components/IdeaDetail';
 import Icon from './components/Icon';
+import CardDetailModal from './components/CardDetailModal';
 
 const IdeaForm: React.FC<{ 
     onSave: (title: string, summary: string) => void; 
@@ -77,6 +78,13 @@ function App() {
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [isAddingNewIdea, setIsAddingNewIdea] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
+  const [selectedCardContext, setSelectedCardContext] = useState<{
+    ideaId: string;
+    ideaTitle: string;
+    columnId: string;
+    columnTitle: string;
+    card: Card;
+  } | null>(null);
   
   if (supabaseInitializationError) {
     return (
@@ -256,6 +264,50 @@ function App() {
       }
   };
 
+  const handleOpenCardDetail = (
+    ideaId: string,
+    ideaTitle: string,
+    columnId: string,
+    columnTitle: string,
+    card: Card
+  ) => {
+    setSelectedCardContext({ ideaId, ideaTitle, columnId, columnTitle, card });
+  };
+
+  const handleCloseCardDetail = () => setSelectedCardContext(null);
+
+  useEffect(() => {
+    if (!selectedCardContext) return;
+    const idea = ideas.find((i) => i.id === selectedCardContext.ideaId);
+    if (!idea) {
+      setSelectedCardContext(null);
+      return;
+    }
+    const column = idea.columns.find((c) => c.id === selectedCardContext.columnId);
+    if (!column) {
+      setSelectedCardContext(null);
+      return;
+    }
+    const latestCard = column.cards.find((c) => c.id === selectedCardContext.card.id);
+    if (!latestCard) {
+      setSelectedCardContext(null);
+      return;
+    }
+    if (
+      latestCard.text !== selectedCardContext.card.text ||
+      column.title !== selectedCardContext.columnTitle ||
+      idea.title !== selectedCardContext.ideaTitle
+    ) {
+      setSelectedCardContext({
+        ideaId: idea.id,
+        ideaTitle: idea.title,
+        columnId: column.id,
+        columnTitle: column.title,
+        card: latestCard,
+      });
+    }
+  }, [ideas, selectedCardContext]);
+
   return (
     <div className="h-screen w-screen bg-slate-900 text-white flex overflow-hidden">
       <Sidebar
@@ -271,9 +323,20 @@ function App() {
         onStartEdit={setEditingIdea}
         onMoveCard={handleMoveCard}
         onEditCard={handleEditCard}
+        onOpenCardDetail={handleOpenCardDetail}
       />
       {isAddingNewIdea && <IdeaForm onSave={handleAddIdea} onClose={() => setIsAddingNewIdea(false)} />}
       {editingIdea && <IdeaForm onSave={handleSaveEditedIdea} onClose={() => setEditingIdea(null)} idea={editingIdea}/>}
+      {selectedCardContext && (
+        <CardDetailModal
+          card={selectedCardContext.card}
+          columnTitle={selectedCardContext.columnTitle}
+          ideaId={selectedCardContext.ideaId}
+          ideaTitle={selectedCardContext.ideaTitle}
+          columnId={selectedCardContext.columnId}
+          onClose={handleCloseCardDetail}
+        />
+      )}
     </div>
   );
 }

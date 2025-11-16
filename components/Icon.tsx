@@ -1,7 +1,7 @@
 import React from 'react';
 
 type IconProps = {
-  name: 'plus' | 'trash' | 'send' | 'sparkles' | 'close' | 'pencil' | 'message';
+  name: 'plus' | 'trash' | 'send' | 'sparkles' | 'close' | 'pencil' | 'message' | 'chat' | 'alert';
   className?: string;
 };
 
@@ -41,6 +41,16 @@ const Icon: React.FC<IconProps> = ({ name, className = 'w-6 h-6' }) => {
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.76 9.76 0 0 1-2.53-0.471l-5.459 2.729a.75.75 0 0 1-1.025-.917l1.623-4.87a9.76 9.76 0 0 1-2.53-0.471l-5.459 2.729a.75.75 0 0 1-1.025-.917l1.623-4.87A9.754 9.754 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
         </svg>
+    ),
+    chat: (
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3h6.75M21 12c0 4.556-4.03 8.25-9 8.25-.861 0-1.697-.11-2.497-.319a1.5 1.5 0 0 0-1.003.09l-3.43 1.52a.75.75 0 0 1-1.042-.852l.812-3.248a1.5 1.5 0 0 0-.24-1.178A8.176 8.176 0 0 1 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+      </svg>
+    ),
+    alert: (
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.007v.008H12Zm-9.114.75a1.125 1.125 0 0 1-.97-1.687l7.114-12a1.125 1.125 0 0 1 1.94 0l7.114 12a1.125 1.125 0 0 1-.97 1.687H2.886Z" />
+      </svg>
     ),
   };
 
