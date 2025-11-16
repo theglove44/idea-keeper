@@ -1,0 +1,20 @@
+{
+  "id": "UPG-2025-11-16-1155-COMMENT-COUNT",
+  "ideaId": "global",
+  "ideaTitle": "All Ideas",
+  "columnId": "any",
+  "columnTitle": "Any Column",
+  "cardId": "any",
+  "cardText": "Display comment count on card tiles",
+  "description": "Show how many comments exist for each card directly on the board so we can prioritize cards with active discussion.",
+  "plan": "1) Extend Supabase query to return comment counts per card (e.g., via RPC or denormalized column)\n2) Update types and state to store counts\n3) Render a badge on each card tile with the number of comments\n4) Add tests verifying count rendering and fallback states",
+  "estimate": "6h",
+  "checklist": [
+    { "label": "Add comment count field to card fetch", "completed": true },
+    { "label": "Render badge on card component", "completed": true },
+    { "label": "Update tests", "completed": true }
+  ],
+  "status": "closed",
+  "completedAt": "2025-11-16T12:25:00.000Z",
+  "createdAt": "2025-11-16T11:55:00.000Z"
+}

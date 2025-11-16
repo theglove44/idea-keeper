@@ -114,13 +114,35 @@ function App() {
             return;
         }
 
+        const cardIds = cardsData.map(card => card.id);
+        let commentCountsMap: Record<string, number> = {};
+        if (cardIds.length > 0) {
+          const { data: commentRows, error: commentError } = await supabase!
+            .from('card_comments')
+            .select('card_id')
+            .in('card_id', cardIds);
+
+          if (commentError) {
+            console.error('Error fetching card comment counts:', commentError);
+          } else if (commentRows) {
+            commentCountsMap = commentRows.reduce((acc: Record<string, number>, row) => {
+              acc[row.card_id] = (acc[row.card_id] || 0) + 1;
+              return acc;
+            }, {});
+          }
+        }
+
         const ideasWithData = ideasData.map(idea => {
             const ideaCards = cardsData.filter(card => card.idea_id === idea.id);
             const columns = DEFAULT_COLUMNS_CONFIG.map(colConfig => ({
                 ...colConfig,
                 cards: ideaCards
                     .filter(card => card.column_id === colConfig.id)
-                    .map(c => ({...c, createdAt: c.created_at }))
+                    .map(c => ({
+                        ...c,
+                        createdAt: c.created_at,
+                        commentsCount: commentCountsMap[c.id] || 0,
+                    }))
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
             }));
             return { ...idea, columns, createdAt: idea.created_at };
@@ -182,7 +204,7 @@ function App() {
         console.error("Error adding card:", error);
         return;
     }
-    const newCard: Card = { id: data.id, text: data.text, createdAt: data.created_at };
+    const newCard: Card = { id: data.id, text: data.text, createdAt: data.created_at, commentsCount: 0 };
 
     const updatedIdeas = ideas.map(idea => {
       if (idea.id === ideaId) {
@@ -276,6 +298,28 @@ function App() {
 
   const handleCloseCardDetail = () => setSelectedCardContext(null);
 
+  const handleIncrementCardCommentCount = (cardId: string) => {
+    setIdeas(prevIdeas => prevIdeas.map(idea => ({
+      ...idea,
+      columns: idea.columns.map(column => ({
+        ...column,
+        cards: column.cards.map(card => (
+          card.id === cardId
+            ? { ...card, commentsCount: (card.commentsCount || 0) + 1 }
+            : card
+        )),
+      })),
+    })));
+
+    setSelectedCardContext(prev => {
+      if (!prev || prev.card.id !== cardId) return prev;
+      return {
+        ...prev,
+        card: { ...prev.card, commentsCount: (prev.card.commentsCount || 0) + 1 },
+      };
+    });
+  };
+
   useEffect(() => {
     if (!selectedCardContext) return;
     const idea = ideas.find((i) => i.id === selectedCardContext.ideaId);
@@ -334,6 +378,7 @@ function App() {
           ideaId={selectedCardContext.ideaId}
           ideaTitle={selectedCardContext.ideaTitle}
           columnId={selectedCardContext.columnId}
+          onCommentAdded={handleIncrementCardCommentCount}
           onClose={handleCloseCardDetail}
         />
       )}

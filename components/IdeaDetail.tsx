@@ -206,6 +206,12 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                           ) : (
                             <>
                                 <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">{card.text}</p>
+                                <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/80">
+                                        <Icon name="message" className="w-3.5 h-3.5" />
+                                        {card.commentsCount ?? 0}
+                                    </span>
+                                </div>
                                 <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                     <button
                                         onClick={(e) => {

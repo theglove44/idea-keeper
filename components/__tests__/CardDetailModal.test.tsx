@@ -8,6 +8,7 @@ const submitCommentMock = vi.fn();
 const reloadMock = vi.fn();
 const createMIReportMock = vi.fn();
 const createUpgradeReportMock = vi.fn();
+const onCommentAddedMock = vi.fn();
 
 let hookState = {
   comments: [],
@@ -42,6 +43,7 @@ const renderModal = (overrides: Partial<typeof hookState> = {}) => {
       columnId="backlog"
       ideaId="idea-1"
       ideaTitle="Sample Idea"
+      onCommentAdded={onCommentAddedMock}
       onClose={vi.fn()}
     />
   );
@@ -52,6 +54,7 @@ beforeEach(() => {
   reloadMock.mockReset();
   createMIReportMock.mockReset();
   createUpgradeReportMock.mockReset();
+  onCommentAddedMock.mockReset();
   submitCommentMock.mockResolvedValue(undefined);
   hookState = {
     comments: [
@@ -91,6 +94,7 @@ describe('CardDetailModal', () => {
     });
 
     expect(submitCommentMock).toHaveBeenCalledWith('Add product tour');
+    expect(onCommentAddedMock).toHaveBeenCalledWith(baseCard.id);
   });
 
   it('creates an MI report when bug action is submitted', async () => {

@@ -10,6 +10,7 @@ type CardDetailModalProps = {
   columnId: string;
   ideaId: string;
   ideaTitle: string;
+  onCommentAdded?: (cardId: string) => void;
   onClose: () => void;
 };
 
@@ -25,7 +26,7 @@ type ComposerMode = 'comment' | 'mi' | 'upgrade';
 
 const defaultChecklist = ['Define scope', 'Review plan', 'QA sign-off'];
 
-const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, columnId, ideaId, ideaTitle, onClose }) => {
+const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, columnId, ideaId, ideaTitle, onCommentAdded, onClose }) => {
   const { comments, isLoading, isSubmitting, error, submitComment } = useCardComments(card?.id ?? null);
   const [draft, setDraft] = useState('');
   const [composerMode, setComposerMode] = useState<ComposerMode>('comment');
@@ -87,6 +88,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
     event?.preventDefault();
     if (!draft.trim()) return;
     await submitComment(draft);
+    onCommentAdded?.(card.id);
     setDraft('');
   };
 
@@ -112,6 +114,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
         severity: miSeverity,
       });
       await submitComment(`🐞 MI report ${result.id} created: ${miSummary.trim()}`);
+      onCommentAdded?.(card.id);
       setReportSuccess(`MI report ${result.id} saved to MI Reports.`);
       setComposerMode('comment');
     } catch (err) {
@@ -151,6 +154,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
       await submitComment(
         `🚀 Upgrade report ${result.id} created (Est. ${upgradeEstimate.trim()}).`
       );
+      onCommentAdded?.(card.id);
       setReportSuccess(`Upgrade report ${result.id} saved to Upgrade Reports.`);
       setComposerMode('comment');
     } catch (err) {
