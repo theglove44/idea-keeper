@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase, supabaseInitializationError } from './services/supabaseClient';
 import { Idea, Card } from './types';
 import Sidebar from './components/Sidebar';
 import IdeaDetail from './components/IdeaDetail';
 import Icon from './components/Icon';
 import CardDetailModal from './components/CardDetailModal';
+import { ToastProvider, useToast } from './components/Toast';
 
 const IdeaForm: React.FC<{ 
     onSave: (title: string, summary: string) => void; 
@@ -23,46 +25,80 @@ const IdeaForm: React.FC<{
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-slate-100">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
-                    <button onClick={onClose} className="p-2 rounded-full text-slate-400 hover:bg-slate-700">
+        <motion.div
+            className="modal-backdrop"
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+        >
+            <motion.div
+                className="w-full max-w-md glass rounded-2xl shadow-elevated p-6"
+                onClick={(e) => e.stopPropagation()}
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            >
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gradient-brand">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
+                    <motion.button
+                        onClick={onClose}
+                        className="p-2 rounded-full text-text-tertiary hover:bg-surface-overlay hover:text-text-primary transition-colors"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                    >
                         <Icon name="close" className="w-5 h-5"/>
-                    </button>
+                    </motion.button>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label htmlFor="title" className="block text-sm font-medium text-slate-300 mb-1">Title</label>
+                        <label htmlFor="title" className="block text-sm font-medium text-text-secondary mb-2">Title</label>
                         <input
                             id="title"
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder="What's your brilliant idea?"
-                            className="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="input-field"
                             required
                         />
                     </div>
                     <div>
-                        <label htmlFor="summary" className="block text-sm font-medium text-slate-300 mb-1">Summary</label>
+                        <label htmlFor="summary" className="block text-sm font-medium text-text-secondary mb-2">Summary</label>
                         <textarea
                             id="summary"
                             value={summary}
                             onChange={(e) => setSummary(e.target.value)}
                             placeholder="Describe it in a sentence or two."
                             rows={3}
-                            className="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="input-field resize-none"
                         />
                     </div>
-                    <div className="flex justify-end pt-2">
-                        <button type="submit" className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors" disabled={!title.trim()}>
-                            Save Idea
-                        </button>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <motion.button
+                            type="button"
+                            onClick={onClose}
+                            className="btn-ghost"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                        >
+                            Cancel
+                        </motion.button>
+                        <motion.button
+                            type="submit"
+                            className="btn-primary"
+                            disabled={!title.trim()}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                        >
+                            {isEditMode ? 'Update' : 'Create'}
+                        </motion.button>
                     </div>
                 </form>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 };
 
@@ -353,36 +389,42 @@ function App() {
   }, [ideas, selectedCardContext]);
 
   return (
-    <div className="h-screen w-screen bg-slate-900 text-white flex overflow-hidden">
-      <Sidebar
-        ideas={ideas}
-        selectedIdeaId={selectedIdeaId}
-        onSelectIdea={setSelectedIdeaId}
-        onNewIdea={() => setIsAddingNewIdea(true)}
-        onDeleteIdea={handleDeleteIdea}
-      />
-      <IdeaDetail
-        idea={selectedIdea}
-        onAddCard={handleAddCardToIdea}
-        onStartEdit={setEditingIdea}
-        onMoveCard={handleMoveCard}
-        onEditCard={handleEditCard}
-        onOpenCardDetail={handleOpenCardDetail}
-      />
-      {isAddingNewIdea && <IdeaForm onSave={handleAddIdea} onClose={() => setIsAddingNewIdea(false)} />}
-      {editingIdea && <IdeaForm onSave={handleSaveEditedIdea} onClose={() => setEditingIdea(null)} idea={editingIdea}/>}
-      {selectedCardContext && (
-        <CardDetailModal
-          card={selectedCardContext.card}
-          columnTitle={selectedCardContext.columnTitle}
-          ideaId={selectedCardContext.ideaId}
-          ideaTitle={selectedCardContext.ideaTitle}
-          columnId={selectedCardContext.columnId}
-          onCommentAdded={handleIncrementCardCommentCount}
-          onClose={handleCloseCardDetail}
+    <ToastProvider>
+      <div className="h-screen w-screen bg-surface text-text-primary flex overflow-hidden">
+        <Sidebar
+          ideas={ideas}
+          selectedIdeaId={selectedIdeaId}
+          onSelectIdea={setSelectedIdeaId}
+          onNewIdea={() => setIsAddingNewIdea(true)}
+          onDeleteIdea={handleDeleteIdea}
         />
-      )}
-    </div>
+        <IdeaDetail
+          idea={selectedIdea}
+          onAddCard={handleAddCardToIdea}
+          onStartEdit={setEditingIdea}
+          onMoveCard={handleMoveCard}
+          onEditCard={handleEditCard}
+          onOpenCardDetail={handleOpenCardDetail}
+        />
+        <AnimatePresence mode="wait">
+          {isAddingNewIdea && <IdeaForm key="add-idea" onSave={handleAddIdea} onClose={() => setIsAddingNewIdea(false)} />}
+          {editingIdea && <IdeaForm key="edit-idea" onSave={handleSaveEditedIdea} onClose={() => setEditingIdea(null)} idea={editingIdea}/>}
+        </AnimatePresence>
+        <AnimatePresence>
+          {selectedCardContext && (
+            <CardDetailModal
+              card={selectedCardContext.card}
+              columnTitle={selectedCardContext.columnTitle}
+              ideaId={selectedCardContext.ideaId}
+              ideaTitle={selectedCardContext.ideaTitle}
+              columnId={selectedCardContext.columnId}
+              onCommentAdded={handleIncrementCardCommentCount}
+              onClose={handleCloseCardDetail}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </ToastProvider>
   );
 }
 

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Idea, Card, Column } from '../types';
 import { getBrainstormSuggestions, getCardBrainstormSuggestions } from '../services/geminiService';
 import Icon from './Icon';
+import { LoadingSpinner, LoadingCards } from './LoadingSkeleton';
 
 type IdeaDetailProps = {
   idea: Idea | null;
@@ -123,66 +125,107 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
 
   if (!idea) {
     return (
-      <main className="flex-1 flex items-center justify-center text-slate-500">
-        <div className="text-center">
-          <p className="text-xl">Select an idea to view details</p>
-          <p>or create a new one to get started.</p>
-        </div>
+      <main className="flex-1 flex items-center justify-center text-text-tertiary">
+        <motion.div
+          className="text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <p className="text-xl mb-2">Select an idea to view details</p>
+          <p className="text-text-muted">or create a new one to get started.</p>
+        </motion.div>
       </main>
     );
   }
 
   return (
-    <main className="flex-1 flex flex-col h-full bg-slate-900/50 overflow-hidden">
+    <main className="flex-1 flex flex-col h-full bg-gradient-to-br from-surface via-surface to-surface-elevated overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-slate-800 flex-shrink-0">
+      <motion.div
+        className="p-6 border-b border-border flex-shrink-0 bg-gradient-to-r from-brand-purple-900/20 to-brand-cyan-900/20"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="flex justify-between items-center gap-4">
-            <h2 className="text-2xl font-bold text-slate-100 truncate">{idea.title}</h2>
-            <button
+            <h2 className="text-3xl font-bold text-gradient-brand truncate">{idea.title}</h2>
+            <motion.button
                 onClick={() => onStartEdit(idea)}
-                className="p-2 rounded-full text-slate-400 hover:bg-slate-700 hover:text-slate-100 transition-colors flex-shrink-0"
+                className="p-2 rounded-full text-text-tertiary hover:bg-surface-overlay hover:text-text-primary transition-colors flex-shrink-0"
                 aria-label="Edit Idea"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
             >
                 <Icon name="pencil" className="w-5 h-5"/>
-            </button>
+            </motion.button>
         </div>
-        <p className="text-slate-400 mt-1 truncate">{idea.summary}</p>
-      </div>
+        {idea.summary && <p className="text-text-secondary mt-2 truncate">{idea.summary}</p>}
+      </motion.div>
       
       {/* AI & Actions */}
-      <div className="p-4 flex-shrink-0 border-b border-slate-800">
-         <button
+      <div className="p-4 flex-shrink-0 border-b border-border">
+         <motion.button
             onClick={handleBrainstorm}
             disabled={isLoadingAi}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/50 text-slate-200 text-sm rounded-lg hover:bg-slate-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-purple-600/80 to-brand-cyan-600/80 text-white text-sm font-medium rounded-lg hover:from-brand-purple-500 hover:to-brand-cyan-500 shadow-card hover:shadow-glow-purple transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <Icon name="sparkles" className="w-4 h-4 text-yellow-400" />
-            {isLoadingAi ? 'Brainstorming...' : 'Brainstorm with AI'}
-          </button>
+            {isLoadingAi ? (
+              <>
+                <LoadingSpinner size="sm" className="border-white border-t-transparent" />
+                <span>Brainstorming...</span>
+              </>
+            ) : (
+              <>
+                <Icon name="sparkles" className="w-4 h-4" />
+                <span>Brainstorm with AI</span>
+              </>
+            )}
+          </motion.button>
       </div>
 
       {/* Kanban Board */}
-      <div className="flex-grow flex p-4 space-x-4 overflow-x-auto">
-        {idea.columns.map((column) => (
-            <div 
+      <div className="flex-grow flex p-4 space-x-4 overflow-x-auto scrollbar-custom">
+        {idea.columns.map((column, colIndex) => (
+            <motion.div
                 key={column.id}
                 onDragOver={(e) => onDragOver(e, column.id)}
                 onDragLeave={() => setDragOverColumn(null)}
                 onDrop={(e) => onDrop(e, column.id)}
-                className={`w-72 flex-shrink-0 bg-slate-800/60 rounded-xl flex flex-col transition-colors duration-200 ${dragOverColumn === column.id ? 'bg-slate-700/80' : ''}`}
+                className={`w-72 flex-shrink-0 glass rounded-2xl flex flex-col transition-all duration-300 ${dragOverColumn === column.id ? 'bg-surface-overlay ring-2 ring-brand-purple-500' : ''}`}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: colIndex * 0.1 }}
             >
-                <h3 className="text-sm font-semibold text-slate-300 p-3 border-b border-slate-700/50 flex-shrink-0">{column.title}</h3>
-                <div className="p-2 flex-grow overflow-y-auto space-y-2">
+                <div className="p-4 border-b border-border/50 flex-shrink-0 bg-gradient-to-r from-brand-purple-900/10 to-brand-cyan-900/10">
+                  <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                    <span className="status-dot-active"></span>
+                    {column.title}
+                    <span className="ml-auto text-xs text-text-muted bg-surface-overlay px-2 py-0.5 rounded-full">{column.cards.length}</span>
+                  </h3>
+                </div>
+                <div className="p-3 flex-grow overflow-y-auto space-y-3 scrollbar-custom">
                     {column.cards.map((card, index) => (
-                       <div 
-                         key={card.id} 
+                       <motion.div
+                         key={card.id}
                          draggable={editingCardId !== card.id}
                          onDragStart={(e) => onDragStart(e, card, column.id)}
                          onClick={() => handleCardClick(card, column)}
-                         className={`relative group p-3 bg-slate-700/70 border border-slate-600/50 rounded-lg shadow-md hover:shadow-lg hover:bg-slate-700 transition-all duration-300 ease-in-out ${editingCardId !== card.id ? 'cursor-grab active:cursor-grabbing' : ''} animate-card-enter ${
-                            dragInfo?.cardId === card.id ? 'opacity-40 scale-105 -rotate-3 ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-800' : ''
+                         className={`relative group p-4 card-interactive ${editingCardId !== card.id ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'} ${
+                            dragInfo?.cardId === card.id ? 'opacity-40 scale-105 -rotate-3 ring-2 ring-brand-purple-500 ring-offset-2 ring-offset-surface' : ''
                          }`}
-                         style={{ animationDelay: `${index * 50}ms` }}
+                         initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                         animate={{ opacity: 1, y: 0, scale: 1 }}
+                         transition={{
+                           duration: 0.3,
+                           delay: index * 0.05,
+                           type: 'spring',
+                           stiffness: 300,
+                           damping: 20
+                         }}
+                         whileHover={{ y: -2 }}
                         >
                           {editingCardId === card.id ? (
                                 <textarea
@@ -199,113 +242,156 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                                             handleCancelCardEdit();
                                         }
                                     }}
-                                    className="block w-full bg-slate-800 border-none ring-1 ring-blue-500 rounded-md p-0 m-0 text-slate-200 text-sm leading-relaxed focus:outline-none resize-none"
+                                    className="block w-full bg-surface border-none ring-2 ring-brand-purple-500 rounded-lg p-2 m-0 text-text-primary text-sm leading-relaxed focus:outline-none resize-none"
                                     autoFocus
                                     rows={Math.max(2, editingCardText.split('\n').length)}
                                 />
                           ) : (
                             <>
-                                <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">{card.text}</p>
-                                <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/80">
+                                <p className="text-text-primary text-sm leading-relaxed whitespace-pre-wrap">{card.text}</p>
+                                <div className="mt-4 flex items-center justify-between text-xs">
+                                    <motion.span
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface/80 border border-border text-text-tertiary"
+                                      whileHover={{ scale: 1.05 }}
+                                    >
                                         <Icon name="message" className="w-3.5 h-3.5" />
-                                        {card.commentsCount ?? 0}
-                                    </span>
+                                        <span className="font-medium">{card.commentsCount ?? 0}</span>
+                                    </motion.span>
                                 </div>
-                                <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                    <button
+                                <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <motion.button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleCardBrainstorm(card);
                                         }}
-                                        className="p-1.5 rounded-full text-slate-400 bg-slate-700/50 hover:text-yellow-300 hover:bg-slate-600 transition-all"
+                                        className="p-1.5 rounded-lg text-text-tertiary bg-surface-elevated/90 hover:text-brand-purple-400 hover:bg-surface-overlay shadow-card backdrop-blur-sm transition-all"
                                         aria-label="Brainstorm on card"
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
                                     >
-                                        <Icon name="sparkles" className="w-3 h-3" />
-                                    </button>
-                                    <button
+                                        <Icon name="sparkles" className="w-3.5 h-3.5" />
+                                    </motion.button>
+                                    <motion.button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleStartEditingCard(card);
                                         }}
-                                        className="p-1.5 rounded-full text-slate-400 bg-slate-700/50 hover:text-slate-100 hover:bg-slate-600 transition-all"
+                                        className="p-1.5 rounded-lg text-text-tertiary bg-surface-elevated/90 hover:text-text-primary hover:bg-surface-overlay shadow-card backdrop-blur-sm transition-all"
                                         aria-label="Edit card"
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
                                     >
-                                        <Icon name="pencil" className="w-3 h-3" />
-                                    </button>
+                                        <Icon name="pencil" className="w-3.5 h-3.5" />
+                                    </motion.button>
                                 </div>
                             </>
                           )}
-                       </div>
+                       </motion.div>
                     ))}
                 </div>
-            </div>
+            </motion.div>
         ))}
       </div>
-      
-      {aiSuggestion && (
-        <div className="flex-shrink-0 p-4 border-t border-slate-800 max-h-52 overflow-y-auto">
-            <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                <h3 className="text-lg font-semibold text-slate-200 mb-2 flex items-center gap-2">
-                    <Icon name="sparkles" className="w-5 h-5 text-yellow-400" />
-                    AI Suggestions
-                </h3>
-                <pre className="text-slate-300 whitespace-pre-wrap text-sm leading-relaxed font-sans">{aiSuggestion}</pre>
-            </div>
-        </div>
-      )}
+
+      <AnimatePresence>
+        {aiSuggestion && (
+          <motion.div
+            className="flex-shrink-0 p-4 border-t border-border max-h-64 overflow-y-auto scrollbar-custom"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+              <div className="p-5 glass rounded-2xl shadow-card border-l-4 border-brand-purple-500">
+                  <h3 className="text-lg font-semibold text-text-primary mb-3 flex items-center gap-2">
+                      <Icon name="sparkles" className="w-5 h-5 text-brand-purple-400" />
+                      AI Suggestions
+                  </h3>
+                  <pre className="text-text-secondary whitespace-pre-wrap text-sm leading-relaxed font-sans">{aiSuggestion}</pre>
+              </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Input Form */}
-      <div className="p-4 border-t border-slate-800 flex-shrink-0 bg-slate-900/40">
+      <motion.div
+        className="p-4 border-t border-border flex-shrink-0 bg-surface-elevated/50 backdrop-blur-sm"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.2 }}
+      >
         <form onSubmit={handleAddCard} className="flex items-center gap-3">
           <input
             type="text"
             value={newCardText}
             onChange={(e) => setNewCardText(e.target.value)}
             placeholder={`Add card to "${idea.columns[0]?.title || ''}"...`}
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+            className="input-field"
             disabled={idea.columns.length === 0}
           />
-          <button
+          <motion.button
             type="submit"
-            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-200"
+            className="p-3 bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 text-white rounded-full hover:shadow-glow-purple disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             disabled={!newCardText.trim()}
             aria-label="Add Card"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
           >
             <Icon name="send" className="w-5 h-5"/>
-          </button>
+          </motion.button>
         </form>
-      </div>
+      </motion.div>
 
       {/* Card Brainstorm Modal */}
-      {brainstormingCard && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={handleCloseCardBrainstorm}>
-              <div className="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                          <Icon name="sparkles" className="w-5 h-5 text-yellow-400"/>
-                          Brainstorming
-                      </h3>
-                      <button onClick={handleCloseCardBrainstorm} className="p-2 rounded-full text-slate-400 hover:bg-slate-700">
-                          <Icon name="close" className="w-5 h-5"/>
-                      </button>
-                  </div>
-                  <div className="p-4 bg-slate-900/50 rounded-lg mb-4 border border-slate-700/50">
-                      <p className="text-slate-400 text-sm mb-1">Original Card:</p>
-                      <p className="text-slate-200 whitespace-pre-wrap">{brainstormingCard.text}</p>
-                  </div>
-                  {isCardAILoading ? (
-                      <div className="text-center text-slate-400 py-8">
-                          <p>Thinking...</p>
-                      </div>
-                  ) : (
-                      <div className="max-h-[50vh] overflow-y-auto pr-2">
-                           <pre className="text-slate-300 whitespace-pre-wrap text-sm leading-relaxed font-sans">{brainstormResult}</pre>
-                      </div>
-                  )}
-              </div>
-          </div>
-      )}
+      <AnimatePresence>
+        {brainstormingCard && (
+            <motion.div
+              className="modal-backdrop"
+              onClick={handleCloseCardBrainstorm}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+                <motion.div
+                  className="w-full max-w-lg glass rounded-2xl shadow-elevated p-6"
+                  onClick={(e) => e.stopPropagation()}
+                  initial={{ scale: 0.9, y: 20 }}
+                  animate={{ scale: 1, y: 0 }}
+                  exit={{ scale: 0.9, y: 20 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                >
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold text-gradient-brand flex items-center gap-2">
+                            <Icon name="sparkles" className="w-5 h-5"/>
+                            Brainstorming
+                        </h3>
+                        <motion.button
+                          onClick={handleCloseCardBrainstorm}
+                          className="p-2 rounded-full text-text-tertiary hover:bg-surface-overlay hover:text-text-primary transition-colors"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                            <Icon name="close" className="w-5 h-5"/>
+                        </motion.button>
+                    </div>
+                    <div className="p-4 bg-surface/50 rounded-xl mb-4 border border-border/50 border-l-4 border-l-brand-cyan-500">
+                        <p className="text-text-tertiary text-sm mb-2 font-medium">Original Card:</p>
+                        <p className="text-text-primary whitespace-pre-wrap">{brainstormingCard.text}</p>
+                    </div>
+                    {isCardAILoading ? (
+                        <div className="flex flex-col items-center justify-center text-text-tertiary py-12">
+                            <LoadingSpinner size="lg" />
+                            <p className="mt-4 text-sm">Thinking...</p>
+                        </div>
+                    ) : (
+                        <div className="max-h-[50vh] overflow-y-auto pr-2 scrollbar-custom">
+                             <pre className="text-text-secondary whitespace-pre-wrap text-sm leading-relaxed font-sans">{brainstormResult}</pre>
+                        </div>
+                    )}
+                </motion.div>
+            </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 };

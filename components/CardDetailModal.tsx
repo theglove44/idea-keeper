@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, SeverityLevel } from '../types';
 import Icon from './Icon';
+import { LoadingSpinner } from './LoadingSkeleton';
 import { useCardComments } from '../hooks/useCardComments';
 import { createMIReport, createUpgradeReport } from '../services/reportService';
 
@@ -180,78 +182,125 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
   const isActionBusy = isSubmitting || isReportSubmitting;
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+    <motion.div
+      className="modal-backdrop"
       onClick={handleBackdropClick}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
     >
-      <div
-        className="w-full max-w-3xl max-h-[90vh] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col"
+      <motion.div
+        className="w-full max-w-3xl max-h-[90vh] glass rounded-2xl shadow-elevated flex flex-col"
         onClick={handleContainerClick}
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       >
-        <header className="p-6 border-b border-slate-800 flex items-start gap-4">
+        <header className="p-6 border-b border-border flex items-start gap-4 bg-gradient-to-r from-brand-purple-900/10 to-brand-cyan-900/10">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-3">
-              <span className="text-xs uppercase tracking-wide text-slate-400 bg-slate-800/80 border border-slate-700 px-2 py-0.5 rounded-full">
+              <motion.span
+                className="text-xs uppercase tracking-wide text-text-primary bg-gradient-to-r from-brand-purple-600/20 to-brand-cyan-600/20 border border-brand-purple-500/30 px-3 py-1 rounded-full font-medium"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+              >
                 {columnBadge}
-              </span>
-              <span className="text-xs text-slate-500">{formatTimestamp(card.createdAt)}</span>
+              </motion.span>
+              <motion.span
+                className="text-xs text-text-muted"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                {formatTimestamp(card.createdAt)}
+              </motion.span>
             </div>
-            <h2 className="text-2xl font-semibold text-slate-100 whitespace-pre-wrap">
+            <motion.h2
+              className="text-2xl font-semibold text-text-primary whitespace-pre-wrap"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
               {card.text}
-            </h2>
+            </motion.h2>
           </div>
-          <button
+          <motion.button
             onClick={onClose}
-            className="p-2 rounded-full text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition"
+            className="p-2 rounded-full text-text-tertiary hover:text-text-primary hover:bg-surface-overlay transition-colors"
             aria-label="Close card detail"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
           >
             <Icon name="close" className="w-5 h-5" />
-          </button>
+          </motion.button>
         </header>
 
         <section className="flex-1 overflow-hidden flex flex-col">
-          {error && (
-            <div className="px-6 py-2 bg-red-500/10 text-red-300 text-sm border-b border-red-500/30">
-              {error}
-            </div>
-          )}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                className="px-6 py-3 bg-status-error/10 text-status-error text-sm border-b border-status-error/30 flex items-center gap-2"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <Icon name="alert" className="w-4 h-4" />
+                {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-slate-900/40"
+            className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-surface/20 scrollbar-custom"
           >
             {isLoading ? (
-              <div className="text-slate-400 text-sm">Loading comments...</div>
-            ) : comments.length === 0 ? (
-              <div className="text-slate-500 text-sm text-center py-6">
-                No comments yet. Start the conversation!
+              <div className="flex flex-col items-center justify-center py-12 text-text-tertiary">
+                <LoadingSpinner size="md" />
+                <p className="mt-4 text-sm">Loading comments...</p>
               </div>
+            ) : comments.length === 0 ? (
+              <motion.div
+                className="text-text-muted text-sm text-center py-8"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                No comments yet. Start the conversation!
+              </motion.div>
             ) : (
-              comments.map((comment) => {
+              comments.map((comment, index) => {
                 const isOwn = comment.author === 'You' || !comment.author;
                 return (
-                  <div key={comment.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                  <motion.div
+                    key={comment.id}
+                    className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
                     <div className="max-w-[80%]">
                       <div
-                        className={`rounded-2xl px-4 py-2 text-sm leading-relaxed border ${
+                        className={`rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-card ${
                           isOwn
-                            ? 'bg-blue-600/70 border-blue-500/60 text-white'
-                            : 'bg-slate-800/80 border-slate-700 text-slate-100'
+                            ? 'bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 text-white'
+                            : 'bg-surface-elevated border border-border text-text-primary'
                         }`}
                       >
                         <p className="whitespace-pre-wrap">{comment.body}</p>
                       </div>
-                      <div className={`text-[11px] mt-1 ${isOwn ? 'text-blue-200/80 text-right' : 'text-slate-500'}`}>
+                      <div className={`text-[11px] mt-1.5 px-1 ${isOwn ? 'text-brand-purple-300 text-right' : 'text-text-muted'}`}>
                         {comment.author || 'You'} · {formatTimestamp(comment.createdAt)}
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })
             )}
           </div>
-          <div className="p-6 border-t border-slate-800 bg-slate-900/60 flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
-              <span>Action:</span>
+          <div className="p-6 border-t border-border bg-surface-elevated/30 backdrop-blur-sm flex flex-col gap-4">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-text-tertiary">
+              <span className="font-medium">Action:</span>
               {(
                 [
                   { key: 'comment', label: 'Comment', icon: 'chat' },
@@ -259,37 +308,59 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                   { key: 'upgrade', label: 'Start Upgrade', icon: 'sparkles' },
                 ] as const
               ).map((action) => (
-                <button
+                <motion.button
                   key={action.key}
                   type="button"
                   onClick={() => setComposerMode(action.key)}
                   aria-pressed={composerMode === action.key}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition text-sm ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-sm font-medium ${
                     composerMode === action.key
-                      ? 'bg-blue-600/80 border-blue-500 text-white'
-                      : 'bg-slate-800/50 border-slate-700 text-slate-300'
+                      ? 'bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 border-brand-purple-500 text-white shadow-card'
+                      : 'bg-surface-elevated border-border text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
                   }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
                   <Icon name={action.icon} className="w-3.5 h-3.5" />
                   {action.label}
-                </button>
+                </motion.button>
               ))}
             </div>
 
-            {reportError && (
-              <div className="text-sm text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-                {reportError}
-              </div>
-            )}
-            {reportSuccess && (
-              <div className="text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2">
-                {reportSuccess}
-              </div>
-            )}
+            <AnimatePresence mode="wait">
+              {reportError && (
+                <motion.div
+                  className="text-sm text-status-error bg-status-error/10 border border-status-error/30 rounded-xl px-4 py-3 flex items-center gap-2"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <Icon name="alert" className="w-4 h-4 flex-shrink-0" />
+                  <span>{reportError}</span>
+                </motion.div>
+              )}
+              {reportSuccess && (
+                <motion.div
+                  className="text-sm text-status-success bg-status-success/10 border border-status-success/30 rounded-xl px-4 py-3 flex items-center gap-2"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <Icon name="check" className="w-4 h-4 flex-shrink-0" />
+                  <span>{reportSuccess}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {composerMode === 'comment' && (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-                <label htmlFor="card-comment" className="text-sm text-slate-400">
+              <motion.form
+                onSubmit={handleSubmit}
+                className="flex flex-col gap-3"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <label htmlFor="card-comment" className="text-sm text-text-secondary font-medium">
                   Add a comment
                 </label>
                 <div className="flex gap-3">
@@ -306,52 +377,60 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                     }}
                     rows={2}
                     placeholder="Share your thoughts..."
-                    className="flex-1 resize-none bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="input-field resize-none"
                     disabled={isActionBusy}
                   />
-                  <button
+                  <motion.button
                     type="submit"
                     disabled={!draft.trim() || isActionBusy}
-                    className="self-end h-12 w-12 rounded-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 flex items-center justify-center text-white transition"
+                    className="self-end h-12 w-12 rounded-full bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 hover:shadow-glow-purple disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-white transition-all"
                     aria-label="Send comment"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                   >
                     <Icon name="send" className="w-5 h-5" />
-                  </button>
+                  </motion.button>
                 </div>
-                <p className="text-xs text-slate-500">Press Enter to send, Shift+Enter for a new line.</p>
-              </form>
+                <p className="text-xs text-text-muted">Press Enter to send, Shift+Enter for a new line.</p>
+              </motion.form>
             )}
 
             {composerMode === 'mi' && (
-              <form onSubmit={handleCreateMIReport} className="space-y-3">
+              <motion.form
+                onSubmit={handleCreateMIReport}
+                className="space-y-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
                 <div className="grid gap-2">
-                  <label className="text-sm text-slate-300">Bug summary</label>
+                  <label className="text-sm text-text-secondary font-medium">Bug summary</label>
                   <input
                     type="text"
                     value={miSummary}
                     onChange={(e) => setMiSummary(e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="input-field"
                     placeholder="Short description"
                     disabled={isReportSubmitting}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <label className="text-sm text-slate-300">Details</label>
+                  <label className="text-sm text-text-secondary font-medium">Details</label>
                   <textarea
                     value={miDetails}
                     onChange={(e) => setMiDetails(e.target.value)}
                     rows={4}
-                    className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="input-field resize-none"
                     placeholder="Describe the issue, steps to reproduce, expected vs actual"
                     disabled={isReportSubmitting}
                   />
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="text-sm text-slate-300">Severity</label>
+                <div className="grid gap-2">
+                  <label className="text-sm text-text-secondary font-medium">Severity</label>
                   <select
                     value={miSeverity}
                     onChange={(e) => setMiSeverity(e.target.value as SeverityLevel)}
-                    className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="input-field"
                     disabled={isReportSubmitting}
                   >
                     <option value="low">Low</option>
@@ -360,104 +439,142 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                     <option value="critical">Critical</option>
                   </select>
                 </div>
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-lg bg-amber-500 text-slate-900 font-semibold disabled:opacity-60"
-                    disabled={isReportSubmitting}
+                <div className="flex justify-end gap-3">
+                  <motion.button
+                    type="button"
+                    onClick={() => setComposerMode('comment')}
+                    className="btn-ghost"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    Create MI Report
-                  </button>
+                    Cancel
+                  </motion.button>
+                  <motion.button
+                    type="submit"
+                    className="px-5 py-2 rounded-lg bg-status-warning text-white font-semibold shadow-card hover:shadow-card-hover disabled:opacity-50 transition-all"
+                    disabled={isReportSubmitting}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {isReportSubmitting ? 'Creating...' : 'Create MI Report'}
+                  </motion.button>
                 </div>
-              </form>
+              </motion.form>
             )}
 
             {composerMode === 'upgrade' && (
-              <form onSubmit={handleCreateUpgradeReport} className="space-y-3">
+              <motion.form
+                onSubmit={handleCreateUpgradeReport}
+                className="space-y-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
                 <div className="grid gap-2">
-                  <label className="text-sm text-slate-300">Upgrade idea</label>
+                  <label className="text-sm text-text-secondary font-medium">Upgrade idea</label>
                   <input
                     type="text"
                     value={upgradeDescription}
                     onChange={(e) => setUpgradeDescription(e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="input-field"
                     placeholder="What are we improving?"
                     disabled={isReportSubmitting}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <label className="text-sm text-slate-300">Plan (Plan Mode output)</label>
+                  <label className="text-sm text-text-secondary font-medium">Plan (Plan Mode output)</label>
                   <textarea
                     value={upgradePlan}
                     onChange={(e) => setUpgradePlan(e.target.value)}
                     rows={4}
-                    className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="input-field resize-none"
                     placeholder="Outline the implementation steps"
                     disabled={isReportSubmitting}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <label className="text-sm text-slate-300">Estimated time to implement</label>
+                  <label className="text-sm text-text-secondary font-medium">Estimated time to implement</label>
                   <input
                     type="text"
                     value={upgradeEstimate}
                     onChange={(e) => setUpgradeEstimate(e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="input-field"
                     placeholder="e.g. 6h, 2 days"
                     disabled={isReportSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-sm text-slate-300">Checklist</label>
-                    <button
+                    <label className="text-sm text-text-secondary font-medium">Checklist</label>
+                    <motion.button
                       type="button"
                       onClick={handleAddChecklistItem}
-                      className="text-xs text-blue-400 hover:text-blue-300"
+                      className="text-xs text-brand-purple-400 hover:text-brand-purple-300 font-medium"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
                       + Add item
-                    </button>
+                    </motion.button>
                   </div>
                   <div className="space-y-2">
                     {upgradeChecklist.map((item, index) => (
-                      <div key={`check-${index}`} className="flex gap-2">
+                      <motion.div
+                        key={`check-${index}`}
+                        className="flex gap-2"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
                         <input
                           type="text"
                           value={item}
                           onChange={(e) => handleChecklistChange(index, e.target.value)}
-                          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="input-field flex-1"
                           placeholder={`Checklist item ${index + 1}`}
                           disabled={isReportSubmitting}
                         />
                         {upgradeChecklist.length > 1 && (
-                          <button
+                          <motion.button
                             type="button"
                             onClick={() => handleRemoveChecklistItem(index)}
-                            className="px-2 text-slate-400 hover:text-red-300"
+                            className="px-2 text-text-tertiary hover:text-status-error"
                             aria-label="Remove checklist item"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
                           >
                             <Icon name="close" className="w-4 h-4" />
-                          </button>
+                          </motion.button>
                         )}
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 </div>
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-lg bg-emerald-500 text-slate-900 font-semibold disabled:opacity-60"
-                    disabled={isReportSubmitting}
+                <div className="flex justify-end gap-3">
+                  <motion.button
+                    type="button"
+                    onClick={() => setComposerMode('comment')}
+                    className="btn-ghost"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    Create Upgrade Report
-                  </button>
+                    Cancel
+                  </motion.button>
+                  <motion.button
+                    type="submit"
+                    className="px-5 py-2 rounded-lg bg-status-success text-white font-semibold shadow-card hover:shadow-card-hover disabled:opacity-50 transition-all"
+                    disabled={isReportSubmitting}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {isReportSubmitting ? 'Creating...' : 'Create Upgrade Report'}
+                  </motion.button>
                 </div>
-              </form>
+              </motion.form>
             )}
           </div>
         </section>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
