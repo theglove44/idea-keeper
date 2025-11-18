@@ -23,15 +23,15 @@ const IdeaForm: React.FC<{
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-slate-100">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4" onClick={onClose}>
+            <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-4 md:p-6" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-3 md:mb-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-slate-100">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
                     <button onClick={onClose} className="p-2 rounded-full text-slate-400 hover:bg-slate-700">
                         <Icon name="close" className="w-5 h-5"/>
                     </button>
                 </div>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
                     <div>
                         <label htmlFor="title" className="block text-sm font-medium text-slate-300 mb-1">Title</label>
                         <input
@@ -55,8 +55,8 @@ const IdeaForm: React.FC<{
                             className="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
-                    <div className="flex justify-end pt-2">
-                        <button type="submit" className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors" disabled={!title.trim()}>
+                    <div className="flex justify-end pt-1 md:pt-2">
+                        <button type="submit" className="px-4 md:px-5 py-2 text-sm md:text-base bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors" disabled={!title.trim()}>
                             Save Idea
                         </button>
                     </div>
@@ -78,6 +78,7 @@ function App() {
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [isAddingNewIdea, setIsAddingNewIdea] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [selectedCardContext, setSelectedCardContext] = useState<{
     ideaId: string;
     ideaTitle: string;
@@ -354,12 +355,26 @@ function App() {
 
   return (
     <div className="h-screen w-screen bg-slate-900 text-white flex overflow-hidden">
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setIsMobileSidebarOpen(true)}
+        className="md:hidden fixed top-4 left-4 z-40 p-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 hover:bg-slate-700 transition-colors"
+        aria-label="Open menu"
+      >
+        <Icon name="menu" className="w-6 h-6" />
+      </button>
+
       <Sidebar
         ideas={ideas}
         selectedIdeaId={selectedIdeaId}
-        onSelectIdea={setSelectedIdeaId}
+        onSelectIdea={(id) => {
+          setSelectedIdeaId(id);
+          setIsMobileSidebarOpen(false);
+        }}
         onNewIdea={() => setIsAddingNewIdea(true)}
         onDeleteIdea={handleDeleteIdea}
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={() => setIsMobileSidebarOpen(false)}
       />
       <IdeaDetail
         idea={selectedIdea}

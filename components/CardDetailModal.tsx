@@ -181,28 +181,28 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 md:p-4"
       onClick={handleBackdropClick}
     >
       <div
-        className="w-full max-w-3xl max-h-[90vh] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col"
+        className="w-full max-w-3xl max-h-[95vh] md:max-h-[90vh] bg-slate-900 border border-slate-800 rounded-xl md:rounded-2xl shadow-2xl flex flex-col"
         onClick={handleContainerClick}
       >
-        <header className="p-6 border-b border-slate-800 flex items-start gap-4">
+        <header className="p-4 md:p-6 border-b border-slate-800 flex items-start gap-2 md:gap-4">
           <div className="flex-1">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
               <span className="text-xs uppercase tracking-wide text-slate-400 bg-slate-800/80 border border-slate-700 px-2 py-0.5 rounded-full">
                 {columnBadge}
               </span>
-              <span className="text-xs text-slate-500">{formatTimestamp(card.createdAt)}</span>
+              <span className="text-xs text-slate-500 truncate">{formatTimestamp(card.createdAt)}</span>
             </div>
-            <h2 className="text-2xl font-semibold text-slate-100 whitespace-pre-wrap">
+            <h2 className="text-lg md:text-2xl font-semibold text-slate-100 whitespace-pre-wrap">
               {card.text}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition"
+            className="p-1.5 md:p-2 rounded-full text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition flex-shrink-0"
             aria-label="Close card detail"
           >
             <Icon name="close" className="w-5 h-5" />
@@ -211,13 +211,13 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
 
         <section className="flex-1 overflow-hidden flex flex-col">
           {error && (
-            <div className="px-6 py-2 bg-red-500/10 text-red-300 text-sm border-b border-red-500/30">
+            <div className="px-4 md:px-6 py-2 bg-red-500/10 text-red-300 text-sm border-b border-red-500/30">
               {error}
             </div>
           )}
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-slate-900/40"
+            className="flex-1 overflow-y-auto px-4 md:px-6 py-3 md:py-5 space-y-3 md:space-y-4 bg-slate-900/40"
           >
             {isLoading ? (
               <div className="text-slate-400 text-sm">Loading comments...</div>
@@ -249,9 +249,9 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
               })
             )}
           </div>
-          <div className="p-6 border-t border-slate-800 bg-slate-900/60 flex flex-col gap-4">
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
-              <span>Action:</span>
+          <div className="p-4 md:p-6 border-t border-slate-800 bg-slate-900/60 flex flex-col gap-3 md:gap-4">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs md:text-sm text-slate-400">
+              <span className="hidden md:inline">Action:</span>
               {(
                 [
                   { key: 'comment', label: 'Comment', icon: 'chat' },
@@ -264,14 +264,14 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                   type="button"
                   onClick={() => setComposerMode(action.key)}
                   aria-pressed={composerMode === action.key}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition text-sm ${
+                  className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 rounded-full border transition text-xs md:text-sm ${
                     composerMode === action.key
                       ? 'bg-blue-600/80 border-blue-500 text-white'
                       : 'bg-slate-800/50 border-slate-700 text-slate-300'
                   }`}
                 >
                   <Icon name={action.icon} className="w-3.5 h-3.5" />
-                  {action.label}
+                  <span className="hidden sm:inline">{action.label}</span>
                 </button>
               ))}
             </div>
