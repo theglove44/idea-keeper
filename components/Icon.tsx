@@ -1,7 +1,7 @@
 import React from 'react';
 
 type IconProps = {
-  name: 'plus' | 'trash' | 'send' | 'sparkles' | 'close' | 'pencil' | 'message' | 'chat' | 'alert' | 'check';
+  name: 'plus' | 'trash' | 'send' | 'sparkles' | 'close' | 'pencil' | 'message' | 'chat' | 'alert' | 'menu';
   className?: string;
 };
 
@@ -52,9 +52,9 @@ const Icon: React.FC<IconProps> = ({ name, className = 'w-6 h-6' }) => {
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.007v.008H12Zm-9.114.75a1.125 1.125 0 0 1-.97-1.687l7.114-12a1.125 1.125 0 0 1 1.94 0l7.114 12a1.125 1.125 0 0 1-.97 1.687H2.886Z" />
       </svg>
     ),
-    check: (
+    menu: (
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
       </svg>
     ),
   };

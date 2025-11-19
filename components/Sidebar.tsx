@@ -9,19 +9,43 @@ type SidebarProps = {
   onSelectIdea: (id: string) => void;
   onNewIdea: () => void;
   onDeleteIdea: (id: string) => void;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, onNewIdea, onDeleteIdea }) => {
+const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, onNewIdea, onDeleteIdea, isMobileOpen = false, onMobileClose }) => {
   return (
-    <aside className="w-1/3 max-w-xs h-full bg-surface-elevated/80 backdrop-blur-xl border-r border-border flex flex-col">
-      <motion.div
-        className="p-6 flex justify-between items-center border-b border-border flex-shrink-0 bg-gradient-to-r from-brand-purple-900/10 to-brand-cyan-900/10"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <h1 className="text-2xl font-bold text-gradient-brand">Idea Spark</h1>
-        <motion.button
+    <>
+      {/* Mobile backdrop */}
+      {isMobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+          onClick={onMobileClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`
+        fixed md:relative inset-y-0 left-0 z-50
+        w-4/5 max-w-xs md:w-1/3 md:max-w-xs
+        h-full bg-slate-900/95 md:bg-slate-900/60 backdrop-blur-xl
+        border-r border-slate-700/50 flex flex-col
+        transition-transform duration-300 ease-in-out
+        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+      <div className="p-4 flex justify-between items-center border-b border-slate-700/50 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Mobile close button */}
+          <button
+            onClick={onMobileClose}
+            className="md:hidden p-2 rounded-lg text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 transition-colors duration-200"
+            aria-label="Close menu"
+          >
+            <Icon name="close" className="w-5 h-5" />
+          </button>
+          <h1 className="text-xl font-bold text-slate-100">Idea Spark</h1>
+        </div>
+        <button
           onClick={onNewIdea}
           className="p-2 rounded-lg bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 text-white hover:shadow-glow-purple transition-all duration-200"
           aria-label="New Idea"
@@ -43,32 +67,22 @@ const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, 
               >
                 <motion.button
                   onClick={() => onSelectIdea(idea.id)}
-                  className={`w-full text-left p-4 rounded-xl group transition-all duration-200 flex justify-between items-start ${
-                    selectedIdeaId === idea.id
-                      ? 'bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 text-white shadow-card'
-                      : 'bg-surface-elevated/50 text-text-primary hover:bg-surface-overlay border border-border/50 hover:border-border'
+                  className={`w-full text-left p-3 md:p-3 min-h-[70px] rounded-lg group transition-colors duration-200 flex justify-between items-start ${
+                    selectedIdeaId === idea.id ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800/70 active:bg-slate-800'
                   }`}
                   whileHover={{ scale: 1.02, x: 4 }}
                   whileTap={{ scale: 0.98 }}
                 >
                   <div className="flex-grow pr-2">
-                    <h3 className="font-semibold truncate mb-1">{idea.title}</h3>
-                    {idea.summary && (
-                      <p className={`text-sm truncate ${selectedIdeaId === idea.id ? 'text-white/80' : 'text-text-tertiary'}`}>
-                        {idea.summary}
-                      </p>
-                    )}
+                    <h3 className="font-semibold text-sm md:text-base truncate">{idea.title}</h3>
+                    <p className={`text-xs md:text-sm truncate ${ selectedIdeaId === idea.id ? 'text-blue-100' : 'text-slate-400'}`}>{idea.summary}</p>
                   </div>
                   <motion.button
                     onClick={(e) => {
                       e.stopPropagation();
                       onDeleteIdea(idea.id);
                     }}
-                    className={`p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0 ${
-                      selectedIdeaId === idea.id
-                        ? 'hover:bg-white/20'
-                        : 'hover:bg-surface-overlay'
-                    }`}
+                    className={`p-2 md:p-1 rounded opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0 ${ selectedIdeaId === idea.id ? 'hover:bg-blue-500' : 'hover:bg-slate-700'}`}
                     aria-label={`Delete ${idea.title}`}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -105,6 +119,7 @@ const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, 
          </motion.a>
       </div>
     </aside>
+    </>
   );
 };
 

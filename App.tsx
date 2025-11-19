@@ -25,34 +25,15 @@ const IdeaForm: React.FC<{
     };
 
     return (
-        <motion.div
-            className="modal-backdrop"
-            onClick={onClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-        >
-            <motion.div
-                className="w-full max-w-md glass rounded-2xl shadow-elevated p-6"
-                onClick={(e) => e.stopPropagation()}
-                initial={{ scale: 0.9, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.9, y: 20 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            >
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-gradient-brand">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
-                    <motion.button
-                        onClick={onClose}
-                        className="p-2 rounded-full text-text-tertiary hover:bg-surface-overlay hover:text-text-primary transition-colors"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                    >
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4" onClick={onClose}>
+            <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-4 md:p-6" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-3 md:mb-4">
+                    <h2 className="text-xl md:text-2xl font-bold text-slate-100">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
+                    <button onClick={onClose} className="p-2 rounded-full text-slate-400 hover:bg-slate-700">
                         <Icon name="close" className="w-5 h-5"/>
                     </motion.button>
                 </div>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
                     <div>
                         <label htmlFor="title" className="block text-sm font-medium text-text-secondary mb-2">Title</label>
                         <input
@@ -76,25 +57,10 @@ const IdeaForm: React.FC<{
                             className="input-field resize-none"
                         />
                     </div>
-                    <div className="flex justify-end gap-3 pt-2">
-                        <motion.button
-                            type="button"
-                            onClick={onClose}
-                            className="btn-ghost"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                        >
-                            Cancel
-                        </motion.button>
-                        <motion.button
-                            type="submit"
-                            className="btn-primary"
-                            disabled={!title.trim()}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                        >
-                            {isEditMode ? 'Update' : 'Create'}
-                        </motion.button>
+                    <div className="flex justify-end pt-1 md:pt-2">
+                        <button type="submit" className="px-4 md:px-5 py-2 text-sm md:text-base bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors" disabled={!title.trim()}>
+                            Save Idea
+                        </button>
                     </div>
                 </form>
             </motion.div>
@@ -114,6 +80,7 @@ function App() {
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [isAddingNewIdea, setIsAddingNewIdea] = useState(false);
   const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [selectedCardContext, setSelectedCardContext] = useState<{
     ideaId: string;
     ideaTitle: string;
@@ -389,22 +356,47 @@ function App() {
   }, [ideas, selectedCardContext]);
 
   return (
-    <ToastProvider>
-      <div className="h-screen w-screen bg-surface text-text-primary flex overflow-hidden">
-        <Sidebar
-          ideas={ideas}
-          selectedIdeaId={selectedIdeaId}
-          onSelectIdea={setSelectedIdeaId}
-          onNewIdea={() => setIsAddingNewIdea(true)}
-          onDeleteIdea={handleDeleteIdea}
-        />
-        <IdeaDetail
-          idea={selectedIdea}
-          onAddCard={handleAddCardToIdea}
-          onStartEdit={setEditingIdea}
-          onMoveCard={handleMoveCard}
-          onEditCard={handleEditCard}
-          onOpenCardDetail={handleOpenCardDetail}
+    <div className="h-screen w-screen bg-slate-900 text-white flex overflow-hidden">
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setIsMobileSidebarOpen(true)}
+        className="md:hidden fixed top-4 left-4 z-40 p-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 hover:bg-slate-700 transition-colors"
+        aria-label="Open menu"
+      >
+        <Icon name="menu" className="w-6 h-6" />
+      </button>
+
+      <Sidebar
+        ideas={ideas}
+        selectedIdeaId={selectedIdeaId}
+        onSelectIdea={(id) => {
+          setSelectedIdeaId(id);
+          setIsMobileSidebarOpen(false);
+        }}
+        onNewIdea={() => setIsAddingNewIdea(true)}
+        onDeleteIdea={handleDeleteIdea}
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={() => setIsMobileSidebarOpen(false)}
+      />
+      <IdeaDetail
+        idea={selectedIdea}
+        onAddCard={handleAddCardToIdea}
+        onStartEdit={setEditingIdea}
+        onMoveCard={handleMoveCard}
+        onEditCard={handleEditCard}
+        onOpenCardDetail={handleOpenCardDetail}
+      />
+      {isAddingNewIdea && <IdeaForm onSave={handleAddIdea} onClose={() => setIsAddingNewIdea(false)} />}
+      {editingIdea && <IdeaForm onSave={handleSaveEditedIdea} onClose={() => setEditingIdea(null)} idea={editingIdea}/>}
+      {selectedCardContext && (
+        <CardDetailModal
+          card={selectedCardContext.card}
+          columnTitle={selectedCardContext.columnTitle}
+          ideaId={selectedCardContext.ideaId}
+          ideaTitle={selectedCardContext.ideaTitle}
+          columnId={selectedCardContext.columnId}
+          onCommentAdded={handleIncrementCardCommentCount}
+          onClose={handleCloseCardDetail}
         />
         <AnimatePresence mode="wait">
           {isAddingNewIdea && <IdeaForm key="add-idea" onSave={handleAddIdea} onClose={() => setIsAddingNewIdea(false)} />}
