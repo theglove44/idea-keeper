@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase, supabaseInitializationError } from './services/supabaseClient';
 import { Idea, Card } from './types';
 import Sidebar from './components/Sidebar';
 import IdeaDetail from './components/IdeaDetail';
 import Icon from './components/Icon';
 import CardDetailModal from './components/CardDetailModal';
+import { ToastProvider, useToast } from './components/Toast';
 
 const IdeaForm: React.FC<{ 
     onSave: (title: string, summary: string) => void; 
@@ -29,30 +31,30 @@ const IdeaForm: React.FC<{
                     <h2 className="text-xl md:text-2xl font-bold text-slate-100">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
                     <button onClick={onClose} className="p-2 rounded-full text-slate-400 hover:bg-slate-700">
                         <Icon name="close" className="w-5 h-5"/>
-                    </button>
+                    </motion.button>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
                     <div>
-                        <label htmlFor="title" className="block text-sm font-medium text-slate-300 mb-1">Title</label>
+                        <label htmlFor="title" className="block text-sm font-medium text-text-secondary mb-2">Title</label>
                         <input
                             id="title"
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder="What's your brilliant idea?"
-                            className="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="input-field"
                             required
                         />
                     </div>
                     <div>
-                        <label htmlFor="summary" className="block text-sm font-medium text-slate-300 mb-1">Summary</label>
+                        <label htmlFor="summary" className="block text-sm font-medium text-text-secondary mb-2">Summary</label>
                         <textarea
                             id="summary"
                             value={summary}
                             onChange={(e) => setSummary(e.target.value)}
                             placeholder="Describe it in a sentence or two."
                             rows={3}
-                            className="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="input-field resize-none"
                         />
                     </div>
                     <div className="flex justify-end pt-1 md:pt-2">
@@ -61,8 +63,8 @@ const IdeaForm: React.FC<{
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 };
 
@@ -396,8 +398,25 @@ function App() {
           onCommentAdded={handleIncrementCardCommentCount}
           onClose={handleCloseCardDetail}
         />
-      )}
-    </div>
+        <AnimatePresence mode="wait">
+          {isAddingNewIdea && <IdeaForm key="add-idea" onSave={handleAddIdea} onClose={() => setIsAddingNewIdea(false)} />}
+          {editingIdea && <IdeaForm key="edit-idea" onSave={handleSaveEditedIdea} onClose={() => setEditingIdea(null)} idea={editingIdea}/>}
+        </AnimatePresence>
+        <AnimatePresence>
+          {selectedCardContext && (
+            <CardDetailModal
+              card={selectedCardContext.card}
+              columnTitle={selectedCardContext.columnTitle}
+              ideaId={selectedCardContext.ideaId}
+              ideaTitle={selectedCardContext.ideaTitle}
+              columnId={selectedCardContext.columnId}
+              onCommentAdded={handleIncrementCardCommentCount}
+              onClose={handleCloseCardDetail}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </ToastProvider>
   );
 }
 

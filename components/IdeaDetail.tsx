@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Idea, Card, Column } from '../types';
 import { getBrainstormSuggestions, getCardBrainstormSuggestions } from '../services/geminiService';
 import Icon from './Icon';
+import { LoadingSpinner, LoadingCards } from './LoadingSkeleton';
 
 type IdeaDetailProps = {
   idea: Idea | null;
@@ -140,11 +142,13 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
             <h2 className="text-xl md:text-2xl font-bold text-slate-100 truncate">{idea.title}</h2>
             <button
                 onClick={() => onStartEdit(idea)}
-                className="p-2 rounded-full text-slate-400 hover:bg-slate-700 hover:text-slate-100 transition-colors flex-shrink-0"
+                className="p-2 rounded-full text-text-tertiary hover:bg-surface-overlay hover:text-text-primary transition-colors flex-shrink-0"
                 aria-label="Edit Idea"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
             >
                 <Icon name="pencil" className="w-5 h-5"/>
-            </button>
+            </motion.button>
         </div>
         <p className="text-slate-400 text-sm md:text-base mt-1 truncate">{idea.summary}</p>
       </div>
@@ -156,9 +160,18 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
             disabled={isLoadingAi}
             className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/50 text-slate-200 text-xs md:text-sm rounded-lg hover:bg-slate-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Icon name="sparkles" className="w-4 h-4 text-yellow-400" />
-            {isLoadingAi ? 'Brainstorming...' : 'Brainstorm with AI'}
-          </button>
+            {isLoadingAi ? (
+              <>
+                <LoadingSpinner size="sm" className="border-white border-t-transparent" />
+                <span>Brainstorming...</span>
+              </>
+            ) : (
+              <>
+                <Icon name="sparkles" className="w-4 h-4" />
+                <span>Brainstorm with AI</span>
+              </>
+            )}
+          </motion.button>
       </div>
 
       {/* Kanban Board */}
@@ -171,8 +184,14 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                 onDrop={(e) => onDrop(e, column.id)}
                 className={`w-full md:w-72 flex-shrink-0 bg-slate-800/60 rounded-xl flex flex-col transition-colors duration-200 ${dragOverColumn === column.id ? 'bg-slate-700/80' : ''}`}
             >
-                <h3 className="text-sm font-semibold text-slate-300 p-3 border-b border-slate-700/50 flex-shrink-0">{column.title}</h3>
-                <div className="p-2 flex-grow overflow-y-auto space-y-2">
+                <div className="p-4 border-b border-border/50 flex-shrink-0 bg-gradient-to-r from-brand-purple-900/10 to-brand-cyan-900/10">
+                  <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                    <span className="status-dot-active"></span>
+                    {column.title}
+                    <span className="ml-auto text-xs text-text-muted bg-surface-overlay px-2 py-0.5 rounded-full">{column.cards.length}</span>
+                  </h3>
+                </div>
+                <div className="p-3 flex-grow overflow-y-auto space-y-3 scrollbar-custom">
                     {column.cards.map((card, index) => (
                        <div
                          key={card.id}
@@ -182,7 +201,16 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                          className={`relative group p-3 md:p-3 min-h-[60px] bg-slate-700/70 border border-slate-600/50 rounded-lg shadow-md hover:shadow-lg active:shadow-xl hover:bg-slate-700 active:bg-slate-600 transition-all duration-300 ease-in-out ${editingCardId !== card.id ? 'cursor-grab active:cursor-grabbing' : ''} animate-card-enter ${
                             dragInfo?.cardId === card.id ? 'opacity-40 scale-105 -rotate-3 ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-800' : ''
                          }`}
-                         style={{ animationDelay: `${index * 50}ms` }}
+                         initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                         animate={{ opacity: 1, y: 0, scale: 1 }}
+                         transition={{
+                           duration: 0.3,
+                           delay: index * 0.05,
+                           type: 'spring',
+                           stiffness: 300,
+                           damping: 20
+                         }}
+                         whileHover={{ y: -2 }}
                         >
                           {editingCardId === card.id ? (
                                 <textarea
@@ -199,18 +227,21 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                                             handleCancelCardEdit();
                                         }
                                     }}
-                                    className="block w-full bg-slate-800 border-none ring-1 ring-blue-500 rounded-md p-0 m-0 text-slate-200 text-sm leading-relaxed focus:outline-none resize-none"
+                                    className="block w-full bg-surface border-none ring-2 ring-brand-purple-500 rounded-lg p-2 m-0 text-text-primary text-sm leading-relaxed focus:outline-none resize-none"
                                     autoFocus
                                     rows={Math.max(2, editingCardText.split('\n').length)}
                                 />
                           ) : (
                             <>
-                                <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">{card.text}</p>
-                                <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/80">
+                                <p className="text-text-primary text-sm leading-relaxed whitespace-pre-wrap">{card.text}</p>
+                                <div className="mt-4 flex items-center justify-between text-xs">
+                                    <motion.span
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface/80 border border-border text-text-tertiary"
+                                      whileHover={{ scale: 1.05 }}
+                                    >
                                         <Icon name="message" className="w-3.5 h-3.5" />
-                                        {card.commentsCount ?? 0}
-                                    </span>
+                                        <span className="font-medium">{card.commentsCount ?? 0}</span>
+                                    </motion.span>
                                 </div>
                                 <div className="absolute top-1 right-1 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
                                     <button
@@ -220,6 +251,8 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                                         }}
                                         className="p-2 md:p-1.5 rounded-full text-slate-400 bg-slate-700/80 hover:text-yellow-300 hover:bg-slate-600 active:bg-slate-500 transition-all"
                                         aria-label="Brainstorm on card"
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
                                     >
                                         <Icon name="sparkles" className="w-4 h-4 md:w-3 md:h-3" />
                                     </button>
@@ -230,16 +263,18 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                                         }}
                                         className="p-2 md:p-1.5 rounded-full text-slate-400 bg-slate-700/80 hover:text-slate-100 hover:bg-slate-600 active:bg-slate-500 transition-all"
                                         aria-label="Edit card"
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
                                     >
                                         <Icon name="pencil" className="w-4 h-4 md:w-3 md:h-3" />
                                     </button>
                                 </div>
                             </>
                           )}
-                       </div>
+                       </motion.div>
                     ))}
                 </div>
-            </div>
+            </motion.div>
         ))}
       </div>
       
@@ -266,16 +301,18 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
             className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 md:px-4 py-2 text-sm md:text-base text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
             disabled={idea.columns.length === 0}
           />
-          <button
+          <motion.button
             type="submit"
             className="p-2 md:p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors duration-200 flex-shrink-0"
             disabled={!newCardText.trim()}
             aria-label="Add Card"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
           >
             <Icon name="send" className="w-5 h-5"/>
-          </button>
+          </motion.button>
         </form>
-      </div>
+      </motion.div>
 
       {/* Card Brainstorm Modal */}
       {brainstormingCard && (
