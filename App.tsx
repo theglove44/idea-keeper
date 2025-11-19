@@ -7,6 +7,10 @@ import IdeaDetail from './components/IdeaDetail';
 import Icon from './components/Icon';
 import CardDetailModal from './components/CardDetailModal';
 import { ToastProvider, useToast } from './components/Toast';
+import SearchModal from './components/SearchModal';
+import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
+import OnboardingTour, { useOnboarding } from './components/OnboardingTour';
+import { useKeyboardShortcut } from './hooks/useKeyboardShortcut';
 
 const IdeaForm: React.FC<{ 
     onSave: (title: string, summary: string) => void; 
@@ -31,7 +35,7 @@ const IdeaForm: React.FC<{
                     <h2 className="text-xl md:text-2xl font-bold text-slate-100">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
                     <button onClick={onClose} className="p-2 rounded-full text-slate-400 hover:bg-slate-700">
                         <Icon name="close" className="w-5 h-5"/>
-                    </motion.button>
+                    </button>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
                     <div>
@@ -63,8 +67,8 @@ const IdeaForm: React.FC<{
                         </button>
                     </div>
                 </form>
-            </motion.div>
-        </motion.div>
+            </div>
+        </div>
     );
 };
 
@@ -88,7 +92,61 @@ function App() {
     columnTitle: string;
     card: Card;
   } | null>(null);
-  
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
+
+  // Onboarding
+  const { showTour, completeTour } = useOnboarding();
+
+  // Keyboard Shortcuts
+  // Cmd/Ctrl+K: Open search
+  useKeyboardShortcut(
+    { key: 'k', ctrl: true, meta: true, description: 'Open search' },
+    () => setIsSearchOpen(true)
+  );
+
+  // ?: Show keyboard shortcuts help
+  useKeyboardShortcut(
+    { key: '?', shift: true, description: 'Show keyboard shortcuts' },
+    () => setIsShortcutsHelpOpen(true)
+  );
+
+  // Cmd/Ctrl+N: New idea
+  useKeyboardShortcut(
+    { key: 'n', ctrl: true, meta: true, description: 'Create new idea' },
+    () => setIsAddingNewIdea(true)
+  );
+
+  // J: Next idea
+  useKeyboardShortcut(
+    {
+      key: 'j',
+      description: 'Next idea',
+      enabled: !isAddingNewIdea && !editingIdea && !selectedCardContext && !isSearchOpen,
+    },
+    () => {
+      if (ideas.length === 0) return;
+      const currentIndex = ideas.findIndex((i) => i.id === selectedIdeaId);
+      const nextIndex = currentIndex < ideas.length - 1 ? currentIndex + 1 : 0;
+      setSelectedIdeaId(ideas[nextIndex].id);
+    }
+  );
+
+  // K: Previous idea
+  useKeyboardShortcut(
+    {
+      key: 'k',
+      description: 'Previous idea',
+      enabled: !isAddingNewIdea && !editingIdea && !selectedCardContext && !isSearchOpen,
+    },
+    () => {
+      if (ideas.length === 0) return;
+      const currentIndex = ideas.findIndex((i) => i.id === selectedIdeaId);
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : ideas.length - 1;
+      setSelectedIdeaId(ideas[prevIndex].id);
+    }
+  );
+
   if (supabaseInitializationError) {
     return (
       <div className="h-screen w-screen bg-slate-900 text-white flex items-center justify-center p-8">
@@ -152,6 +210,51 @@ function App() {
         });
 
         setIdeas(ideasWithData);
+
+        // Create sample idea for first-time users
+        const hasSeenSample = localStorage.getItem('has_seen_sample_idea');
+        if (ideasWithData.length === 0 && !hasSeenSample) {
+          createSampleIdea();
+          localStorage.setItem('has_seen_sample_idea', 'true');
+        }
+    };
+
+    const createSampleIdea = async () => {
+      const sampleIdea = {
+        title: '🚀 Building a Mobile App',
+        summary: 'A sample idea to help you get started with Idea Keeper',
+      };
+
+      const { data, error } = await supabase!
+        .from('ideas')
+        .insert(sampleIdea)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating sample idea:', error);
+        return;
+      }
+
+      // Create sample cards
+      const sampleCards = [
+        { text: 'Research competitor apps and user needs', column_id: 'backlog', idea_id: data.id },
+        { text: 'Design wireframes and user flows', column_id: 'backlog', idea_id: data.id },
+        { text: 'Set up development environment', column_id: 'todo', idea_id: data.id },
+        { text: 'Implement authentication flow', column_id: 'inprogress', idea_id: data.id },
+        { text: 'Create project repository', column_id: 'done', idea_id: data.id },
+      ];
+
+      const { error: cardsError } = await supabase!
+        .from('cards')
+        .insert(sampleCards);
+
+      if (cardsError) {
+        console.error('Error creating sample cards:', cardsError);
+      }
+
+      // Refresh ideas to show the sample
+      fetchIdeas();
     };
 
     fetchIdeas();
@@ -356,6 +459,7 @@ function App() {
   }, [ideas, selectedCardContext]);
 
   return (
+    <ToastProvider>
     <div className="h-screen w-screen bg-slate-900 text-white flex overflow-hidden">
       {/* Mobile hamburger button */}
       <button
@@ -386,36 +490,67 @@ function App() {
         onEditCard={handleEditCard}
         onOpenCardDetail={handleOpenCardDetail}
       />
-      {isAddingNewIdea && <IdeaForm onSave={handleAddIdea} onClose={() => setIsAddingNewIdea(false)} />}
-      {editingIdea && <IdeaForm onSave={handleSaveEditedIdea} onClose={() => setEditingIdea(null)} idea={editingIdea}/>}
-      {selectedCardContext && (
-        <CardDetailModal
-          card={selectedCardContext.card}
-          columnTitle={selectedCardContext.columnTitle}
-          ideaId={selectedCardContext.ideaId}
-          ideaTitle={selectedCardContext.ideaTitle}
-          columnId={selectedCardContext.columnId}
-          onCommentAdded={handleIncrementCardCommentCount}
-          onClose={handleCloseCardDetail}
-        />
-        <AnimatePresence mode="wait">
-          {isAddingNewIdea && <IdeaForm key="add-idea" onSave={handleAddIdea} onClose={() => setIsAddingNewIdea(false)} />}
-          {editingIdea && <IdeaForm key="edit-idea" onSave={handleSaveEditedIdea} onClose={() => setEditingIdea(null)} idea={editingIdea}/>}
-        </AnimatePresence>
-        <AnimatePresence>
-          {selectedCardContext && (
-            <CardDetailModal
-              card={selectedCardContext.card}
-              columnTitle={selectedCardContext.columnTitle}
-              ideaId={selectedCardContext.ideaId}
-              ideaTitle={selectedCardContext.ideaTitle}
-              columnId={selectedCardContext.columnId}
-              onCommentAdded={handleIncrementCardCommentCount}
-              onClose={handleCloseCardDetail}
-            />
-          )}
-        </AnimatePresence>
-      </div>
+
+      {/* Modals */}
+      <AnimatePresence mode="wait">
+        {isAddingNewIdea && (
+          <IdeaForm
+            key="add-idea"
+            onSave={handleAddIdea}
+            onClose={() => setIsAddingNewIdea(false)}
+          />
+        )}
+        {editingIdea && (
+          <IdeaForm
+            key="edit-idea"
+            onSave={handleSaveEditedIdea}
+            onClose={() => setEditingIdea(null)}
+            idea={editingIdea}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedCardContext && (
+          <CardDetailModal
+            card={selectedCardContext.card}
+            columnTitle={selectedCardContext.columnTitle}
+            ideaId={selectedCardContext.ideaId}
+            ideaTitle={selectedCardContext.ideaTitle}
+            columnId={selectedCardContext.columnId}
+            onCommentAdded={handleIncrementCardCommentCount}
+            onClose={handleCloseCardDetail}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        ideas={ideas}
+        onSelectCard={(ideaId, columnId, cardId) => {
+          const idea = ideas.find((i) => i.id === ideaId);
+          if (!idea) return;
+          const column = idea.columns.find((c) => c.id === columnId);
+          if (!column) return;
+          const card = column.cards.find((c) => c.id === cardId);
+          if (!card) return;
+          setSelectedIdeaId(ideaId);
+          handleOpenCardDetail(ideaId, idea.title, columnId, column.title, card);
+        }}
+        onSelectIdea={(ideaId) => setSelectedIdeaId(ideaId)}
+      />
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsHelp
+        isOpen={isShortcutsHelpOpen}
+        onClose={() => setIsShortcutsHelpOpen(false)}
+      />
+
+      {/* Onboarding Tour */}
+      {showTour && <OnboardingTour onComplete={completeTour} />}
+    </div>
     </ToastProvider>
   );
 }

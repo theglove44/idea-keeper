@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Idea } from '../types';
 import Icon from './Icon';
+import EmptyState from './EmptyState';
 
 type SidebarProps = {
   ideas: Idea[];
@@ -14,6 +15,19 @@ type SidebarProps = {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, onNewIdea, onDeleteIdea, isMobileOpen = false, onMobileClose }) => {
+  const [filterText, setFilterText] = React.useState('');
+
+  // Filter ideas based on search text
+  const filteredIdeas = React.useMemo(() => {
+    if (!filterText.trim()) return ideas;
+    const query = filterText.toLowerCase();
+    return ideas.filter(
+      (idea) =>
+        idea.title.toLowerCase().includes(query) ||
+        idea.summary.toLowerCase().includes(query)
+    );
+  }, [ideas, filterText]);
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -45,8 +59,9 @@ const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, 
           </button>
           <h1 className="text-xl font-bold text-slate-100">Idea Spark</h1>
         </div>
-        <button
+        <motion.button
           onClick={onNewIdea}
+          data-tour="new-idea-button"
           className="p-2 rounded-lg bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 text-white hover:shadow-glow-purple transition-all duration-200"
           aria-label="New Idea"
           whileHover={{ scale: 1.1, rotate: 90 }}
@@ -54,11 +69,25 @@ const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, 
         >
           <Icon name="plus" className="w-5 h-5" />
         </motion.button>
-      </motion.div>
+      </div>
+
+      {/* Filter Input */}
+      {ideas.length > 0 && (
+        <div className="px-3 pt-3 pb-2 border-b border-border-subtle">
+          <input
+            type="text"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            placeholder="Filter ideas..."
+            className="w-full px-3 py-2 text-sm bg-surface-elevated border border-border-subtle rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand-purple focus:border-transparent transition-shadow"
+          />
+        </div>
+      )}
+
       <div className="overflow-y-auto p-3 flex-grow scrollbar-custom">
         <ul className="space-y-2">
-          {ideas.length > 0 ? (
-            ideas.map((idea, index) => (
+          {filteredIdeas.length > 0 ? (
+            filteredIdeas.map((idea, index) => (
               <motion.li
                 key={idea.id}
                 initial={{ opacity: 0, x: -20 }}
@@ -92,6 +121,16 @@ const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, 
                 </motion.button>
               </motion.li>
             ))
+          ) : filterText ? (
+            <motion.div
+              className="text-center text-text-tertiary p-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <p className="mb-2">No ideas match "{filterText}"</p>
+              <p className="text-text-muted text-sm">Try a different search term</p>
+            </motion.div>
           ) : (
             <motion.div
               className="text-center text-text-tertiary p-8"

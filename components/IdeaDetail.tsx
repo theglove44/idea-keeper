@@ -4,6 +4,7 @@ import { Idea, Card, Column } from '../types';
 import { getBrainstormSuggestions, getCardBrainstormSuggestions } from '../services/geminiService';
 import Icon from './Icon';
 import { LoadingSpinner, LoadingCards } from './LoadingSkeleton';
+import EmptyState from './EmptyState';
 
 type IdeaDetailProps = {
   idea: Idea | null;
@@ -140,7 +141,7 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
       <div className="p-3 md:p-4 border-b border-slate-800 flex-shrink-0">
         <div className="flex justify-between items-center gap-2 md:gap-4">
             <h2 className="text-xl md:text-2xl font-bold text-slate-100 truncate">{idea.title}</h2>
-            <button
+            <motion.button
                 onClick={() => onStartEdit(idea)}
                 className="p-2 rounded-full text-text-tertiary hover:bg-surface-overlay hover:text-text-primary transition-colors flex-shrink-0"
                 aria-label="Edit Idea"
@@ -158,6 +159,7 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
          <button
             onClick={handleBrainstorm}
             disabled={isLoadingAi}
+            data-tour="brainstorm-button"
             className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/50 text-slate-200 text-xs md:text-sm rounded-lg hover:bg-slate-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoadingAi ? (
@@ -171,11 +173,11 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                 <span>Brainstorm with AI</span>
               </>
             )}
-          </motion.button>
+          </button>
       </div>
 
       {/* Kanban Board */}
-      <div className="flex-grow flex flex-col md:flex-row p-3 md:p-4 gap-3 md:gap-4 md:space-x-0 overflow-y-auto md:overflow-x-auto md:overflow-y-hidden">
+      <div data-tour="kanban-board" className="flex-grow flex flex-col md:flex-row p-3 md:p-4 gap-3 md:gap-4 md:space-x-0 overflow-y-auto md:overflow-x-auto md:overflow-y-hidden">
         {idea.columns.map((column) => (
             <div
                 key={column.id}
@@ -193,7 +195,7 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                 </div>
                 <div className="p-3 flex-grow overflow-y-auto space-y-3 scrollbar-custom">
                     {column.cards.map((card, index) => (
-                       <div
+                       <motion.div
                          key={card.id}
                          draggable={editingCardId !== card.id}
                          onDragStart={(e) => onDragStart(e, card, column.id)}
@@ -244,7 +246,7 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                                     </motion.span>
                                 </div>
                                 <div className="absolute top-1 right-1 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-                                    <button
+                                    <motion.button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleCardBrainstorm(card);
@@ -255,8 +257,8 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                                         whileTap={{ scale: 0.9 }}
                                     >
                                         <Icon name="sparkles" className="w-4 h-4 md:w-3 md:h-3" />
-                                    </button>
-                                    <button
+                                    </motion.button>
+                                    <motion.button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleStartEditingCard(card);
@@ -267,14 +269,14 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                                         whileTap={{ scale: 0.9 }}
                                     >
                                         <Icon name="pencil" className="w-4 h-4 md:w-3 md:h-3" />
-                                    </button>
+                                    </motion.button>
                                 </div>
                             </>
                           )}
                        </motion.div>
                     ))}
                 </div>
-            </motion.div>
+            </div>
         ))}
       </div>
       
@@ -312,7 +314,7 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
             <Icon name="send" className="w-5 h-5"/>
           </motion.button>
         </form>
-      </motion.div>
+      </div>
 
       {/* Card Brainstorm Modal */}
       {brainstormingCard && (
