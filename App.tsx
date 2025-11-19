@@ -200,9 +200,18 @@ function App() {
                 cards: ideaCards
                     .filter(card => card.column_id === colConfig.id)
                     .map(c => ({
-                        ...c,
+                        id: c.id,
+                        text: c.text,
                         createdAt: c.created_at,
                         commentsCount: commentCountsMap[c.id] || 0,
+                        // New collaboration fields
+                        dueDate: c.due_date,
+                        estimatedHours: c.estimated_hours,
+                        actualHours: c.actual_hours,
+                        priority: c.priority,
+                        assignedTo: c.assigned_to,
+                        createdBy: c.created_by,
+                        tags: c.tags,
                     }))
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
             }));
@@ -384,12 +393,60 @@ function App() {
           return idea;
       });
       setIdeas(tempIdeas);
-      
+
       const { error } = await supabase!.from('cards').update({ text: newText }).eq('id', cardId);
       if (error) {
           console.error("Failed to edit card:", error);
           setIdeas(originalIdeas); // Revert
       }
+  };
+
+  const handleUpdateCard = async (cardId: string, updates: Partial<Card>) => {
+    const originalIdeas = ideas;
+    // Optimistic update
+    const tempIdeas = ideas.map(idea => ({
+      ...idea,
+      columns: idea.columns.map(column => ({
+        ...column,
+        cards: column.cards.map(card => (
+          card.id === cardId ? { ...card, ...updates } : card
+        ))
+      }))
+    }));
+    setIdeas(tempIdeas);
+
+    // Also update the selected card context if this is the current card
+    setSelectedCardContext(prev => {
+      if (!prev || prev.card.id !== cardId) return prev;
+      return {
+        ...prev,
+        card: { ...prev.card, ...updates },
+      };
+    });
+
+    // Map our Card fields to database column names
+    const dbUpdates: any = {};
+    if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
+    if (updates.estimatedHours !== undefined) dbUpdates.estimated_hours = updates.estimatedHours;
+    if (updates.actualHours !== undefined) dbUpdates.actual_hours = updates.actualHours;
+    if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+    if (updates.assignedTo !== undefined) dbUpdates.assigned_to = updates.assignedTo;
+    if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+    if (updates.createdBy !== undefined) dbUpdates.created_by = updates.createdBy;
+
+    const { error } = await supabase!.from('cards').update(dbUpdates).eq('id', cardId);
+    if (error) {
+      console.error("Failed to update card:", error);
+      setIdeas(originalIdeas); // Revert on error
+      // Also revert selected card context
+      const originalIdea = originalIdeas.find(i => i.columns.some(c => c.cards.some(card => card.id === cardId)));
+      if (originalIdea) {
+        const originalCard = originalIdea.columns.flatMap(c => c.cards).find(c => c.id === cardId);
+        if (originalCard && selectedCardContext?.card.id === cardId) {
+          setSelectedCardContext(prev => prev ? { ...prev, card: originalCard } : null);
+        }
+      }
+    }
   };
 
   const handleOpenCardDetail = (
@@ -519,6 +576,7 @@ function App() {
             ideaTitle={selectedCardContext.ideaTitle}
             columnId={selectedCardContext.columnId}
             onCommentAdded={handleIncrementCardCommentCount}
+            onCardUpdate={handleUpdateCard}
             onClose={handleCloseCardDetail}
           />
         )}
