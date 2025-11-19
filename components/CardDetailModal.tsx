@@ -207,7 +207,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
             </div>
             <h2 className="text-lg md:text-2xl font-semibold text-slate-100 whitespace-pre-wrap">
               {card.text}
-            </motion.h2>
+            </h2>
           </div>
           <motion.button
             onClick={onClose}
@@ -298,7 +298,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                 >
                   <Icon name={action.icon} className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">{action.label}</span>
-                </button>
+                </motion.button>
               ))}
             </div>
 
@@ -548,8 +548,8 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
             )}
           </div>
         </section>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 };
 
