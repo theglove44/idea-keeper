@@ -5,7 +5,7 @@ import { Idea, Card } from './types';
 import Sidebar from './components/Sidebar';
 import IdeaDetail from './components/IdeaDetail';
 import Icon from './components/Icon';
-import { ToastProvider } from './components/Toast';
+import { useToast } from './components/Toast';
 import OnboardingTour, { useOnboarding } from './components/OnboardingTour';
 import { useKeyboardShortcut } from './hooks/useKeyboardShortcut';
 import { useFocusTrap } from './hooks/useFocusTrap';
@@ -113,6 +113,7 @@ const DEFAULT_COLUMNS_CONFIG = [
 ];
 
 function App() {
+  const { showToast } = useToast();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
   const [isAddingNewIdea, setIsAddingNewIdea] = useState(false);
@@ -202,12 +203,14 @@ function App() {
           .order('created_at', { ascending: false });
         if (ideasError) {
             console.error("Error fetching ideas:", ideasError);
+            showToast(formatSupabaseError(ideasError, 'Failed to load ideas.'), 'error');
             return;
         }
 
         const { data: cardsData, error: cardsError } = await supabase!.from('cards').select('*');
         if (cardsError) {
             console.error("Error fetching cards:", cardsError);
+            showToast(formatSupabaseError(cardsError, 'Failed to load cards.'), 'error');
             return;
         }
 
@@ -221,6 +224,7 @@ function App() {
 
           if (commentError) {
             console.error('Error fetching card comment counts:', commentError);
+            showToast(formatSupabaseError(commentError, 'Comments could not be loaded.'), 'warning');
           } else if (commentRows) {
             commentCountsMap = commentRows.reduce((acc: Record<string, number>, row) => {
               acc[row.card_id] = (acc[row.card_id] || 0) + 1;
@@ -278,6 +282,7 @@ function App() {
 
       if (error) {
         console.error('Error creating sample idea:', error);
+        showToast(formatSupabaseError(error, 'Could not create starter idea.'), 'error');
         return;
       }
 
@@ -296,6 +301,7 @@ function App() {
 
       if (cardsError) {
         console.error('Error creating sample cards:', cardsError);
+        showToast(formatSupabaseError(cardsError, 'Starter cards could not be created.'), 'warning');
       }
 
       // Refresh ideas to show the sample
@@ -318,6 +324,7 @@ function App() {
     const { data, error } = await supabase!.from('ideas').insert({ title, summary }).select().single();
     if (error) {
         console.error("Error adding idea:", error);
+        showToast(formatSupabaseError(error, 'Failed to save idea.'), 'error');
         return { success: false, error: formatSupabaseError(error, 'Failed to save idea.') };
     }
 
@@ -331,6 +338,7 @@ function App() {
     setIdeas([newIdea, ...ideas]);
     setSelectedIdeaId(newIdea.id);
     setIsAddingNewIdea(false);
+    showToast('Idea created successfully.', 'success');
     return { success: true };
   };
 
@@ -339,6 +347,7 @@ function App() {
     const { error } = await supabase!.from('ideas').delete().eq('id', id);
     if (error) {
         console.error("Error deleting idea:", error);
+        showToast(formatSupabaseError(error, 'Failed to delete idea.'), 'error');
         return;
     }
 
@@ -348,12 +357,14 @@ function App() {
     if (selectedIdeaId === id) {
       setSelectedIdeaId(updatedIdeas.length > 0 ? updatedIdeas[0].id : null);
     }
+    showToast('Idea deleted.', 'success');
   };
 
   const handleAddCardToIdea = async (ideaId: string, columnId: string, cardText: string) => {
     const { data, error } = await supabase!.from('cards').insert({ text: cardText, idea_id: ideaId, column_id: columnId }).select().single();
      if (error) {
         console.error("Error adding card:", error);
+        showToast(formatSupabaseError(error, 'Failed to add card.'), 'error');
         return;
     }
     const newCard: Card = { id: data.id, text: data.text, createdAt: data.created_at, commentsCount: 0 };
@@ -380,10 +391,12 @@ function App() {
     const { error } = await supabase!.from('ideas').update({ title, summary }).eq('id', editingIdea.id);
      if (error) {
         console.error("Error updating idea:", error);
+        showToast(formatSupabaseError(error, 'Failed to update idea.'), 'error');
         return { success: false, error: formatSupabaseError(error, 'Failed to update idea.') };
     }
     setIdeas(ideas.map(idea => idea.id === editingIdea.id ? { ...idea, title, summary } : idea));
     setEditingIdea(null);
+    showToast('Idea updated successfully.', 'success');
     return { success: true };
   };
 
@@ -415,6 +428,7 @@ function App() {
     const { error } = await supabase!.from('cards').update({ column_id: destColumnId }).eq('id', cardId);
     if (error) {
         console.error("Failed to move card:", error);
+        showToast(formatSupabaseError(error, 'Failed to move card.'), 'error');
         setIdeas(originalIdeas); // Revert on error
     }
   };
@@ -437,6 +451,7 @@ function App() {
       const { error } = await supabase!.from('cards').update({ text: newText }).eq('id', cardId);
       if (error) {
           console.error("Failed to edit card:", error);
+          showToast(formatSupabaseError(error, 'Failed to update card text.'), 'error');
           setIdeas(originalIdeas); // Revert
       }
   };
@@ -477,6 +492,7 @@ function App() {
     const { error } = await supabase!.from('cards').update(dbUpdates).eq('id', cardId);
     if (error) {
       console.error("Failed to update card:", error);
+      showToast(formatSupabaseError(error, 'Failed to update card details.'), 'error');
       setIdeas(originalIdeas); // Revert on error
       // Also revert selected card context
       const originalIdea = originalIdeas.find(i => i.columns.some(c => c.cards.some(card => card.id === cardId)));
@@ -556,7 +572,6 @@ function App() {
   }, [ideas, selectedCardContext]);
 
   return (
-    <ToastProvider>
     <div className="app-shell">
       {/* Mobile hamburger button */}
       <button
@@ -656,7 +671,6 @@ function App() {
       {/* Onboarding Tour */}
       {showTour && <OnboardingTour onComplete={completeTour} />}
     </div>
-    </ToastProvider>
   );
 }
 

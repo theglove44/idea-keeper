@@ -53,6 +53,13 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
+  useFocusTrap({
+    active: true,
+    containerRef: dialogRef,
+    initialFocusRef: inputRef,
+    onEscape: onClose,
+  });
+
   // New card metadata handlers
   const handleDueDateChange = (dueDate: string | undefined) => {
     onCardUpdate?.(card.id, { dueDate });
@@ -79,16 +86,6 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
   };
 
   useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  useEffect(() => {
     const node = scrollContainerRef.current;
     if (!node) return;
     if (typeof node.scrollTo === 'function') {
@@ -110,6 +107,14 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
     setReportSuccess(null);
   }, [card.id, card.text]);
 
+  useEffect(() => {
+    if (composerMode !== 'comment') return;
+    const rafId = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [composerMode]);
+
   const handleBackdropClick = () => onClose();
   const handleContainerClick = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -121,6 +126,12 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
     await submitComment(draft);
     onCommentAdded?.(card.id);
     setDraft('');
+  };
+
+  const handleComposerModeChange = (mode: ComposerMode) => {
+    setComposerMode(mode);
+    setReportError(null);
+    setReportSuccess(null);
   };
 
   const handleCreateMIReport = async (event?: React.FormEvent) => {
@@ -345,7 +356,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                 <motion.button
                   key={action.key}
                   type="button"
-                  onClick={() => setComposerMode(action.key)}
+                  onClick={() => handleComposerModeChange(action.key)}
                   aria-pressed={composerMode === action.key}
                   className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 rounded-full border transition text-xs md:text-sm ${
                     composerMode === action.key
@@ -476,7 +487,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                 <div className="flex justify-end gap-3">
                   <motion.button
                     type="button"
-                    onClick={() => setComposerMode('comment')}
+                    onClick={() => handleComposerModeChange('comment')}
                     className="btn-ghost"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -586,7 +597,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                 <div className="flex justify-end gap-3">
                   <motion.button
                     type="button"
-                    onClick={() => setComposerMode('comment')}
+                    onClick={() => handleComposerModeChange('comment')}
                     className="btn-ghost"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}

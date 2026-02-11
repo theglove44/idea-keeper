@@ -9,6 +9,7 @@ const reloadMock = vi.fn();
 const createMIReportMock = vi.fn();
 const createUpgradeReportMock = vi.fn();
 const onCommentAddedMock = vi.fn();
+const onCloseMock = vi.fn();
 
 let hookState = {
   comments: [],
@@ -44,7 +45,7 @@ const renderModal = (overrides: Partial<typeof hookState> = {}) => {
       ideaId="idea-1"
       ideaTitle="Sample Idea"
       onCommentAdded={onCommentAddedMock}
-      onClose={vi.fn()}
+      onClose={onCloseMock}
     />
   );
 };
@@ -55,6 +56,7 @@ beforeEach(() => {
   createMIReportMock.mockReset();
   createUpgradeReportMock.mockReset();
   onCommentAddedMock.mockReset();
+  onCloseMock.mockReset();
   submitCommentMock.mockResolvedValue(undefined);
   hookState = {
     comments: [
@@ -95,6 +97,14 @@ describe('CardDetailModal', () => {
 
     expect(submitCommentMock).toHaveBeenCalledWith('Add product tour');
     expect(onCommentAddedMock).toHaveBeenCalledWith(baseCard.id);
+  });
+
+  it('closes when Escape is pressed', () => {
+    renderModal();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(onCloseMock).toHaveBeenCalledTimes(1);
   });
 
   it('creates an MI report when bug action is submitted', async () => {
