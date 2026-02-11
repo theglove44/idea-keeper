@@ -4,6 +4,7 @@ import { Idea, Card, Column } from '../types';
 import Icon from './Icon';
 import { LoadingSpinner, LoadingCards } from './LoadingSkeleton';
 import EmptyState from './EmptyState';
+import CardBadges from './CardBadges';
 
 type IdeaDetailProps = {
   idea: Idea | null;
@@ -243,7 +244,10 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                           ) : (
                             <>
                                 <p className="text-text-primary text-sm leading-relaxed whitespace-pre-wrap">{card.text}</p>
-                                <div className="mt-4 flex items-center justify-between text-xs">
+                                <div className="mt-3">
+                                  <CardBadges card={card} />
+                                </div>
+                                <div className="mt-3 flex items-center justify-between text-xs">
                                     <motion.span
                                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface/80 border border-border text-text-tertiary"
                                       whileHover={{ scale: 1.05 }}

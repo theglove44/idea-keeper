@@ -1,11 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, SeverityLevel } from '../types';
+import { Card, SeverityLevel, PriorityLevel } from '../types';
 import Icon from './Icon';
 import { LoadingSpinner } from './LoadingSkeleton';
 import { useCardComments } from '../hooks/useCardComments';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { createMIReport, createUpgradeReport } from '../services/reportService';
+import DueDatePicker from './DueDatePicker';
+import PrioritySelector from './PrioritySelector';
+import AssigneeSelector from './AssigneeSelector';
+import TimeTracker from './TimeTracker';
+import TagSelector from './TagSelector';
 
 type CardDetailModalProps = {
   card: Card;
@@ -14,6 +19,7 @@ type CardDetailModalProps = {
   ideaId: string;
   ideaTitle: string;
   onCommentAdded?: (cardId: string) => void;
+  onCardUpdate?: (cardId: string, updates: Partial<Card>) => void;
   onClose: () => void;
 };
 
@@ -29,7 +35,7 @@ type ComposerMode = 'comment' | 'mi' | 'upgrade';
 
 const defaultChecklist = ['Define scope', 'Review plan', 'QA sign-off'];
 
-const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, columnId, ideaId, ideaTitle, onCommentAdded, onClose }) => {
+const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, columnId, ideaId, ideaTitle, onCommentAdded, onCardUpdate, onClose }) => {
   const { comments, isLoading, isSubmitting, error, submitComment } = useCardComments(card?.id ?? null);
   const [draft, setDraft] = useState('');
   const [composerMode, setComposerMode] = useState<ComposerMode>('comment');
@@ -47,12 +53,40 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  useFocusTrap({
-    active: true,
-    containerRef: dialogRef,
-    initialFocusRef: inputRef,
-    onEscape: onClose,
-  });
+  // New card metadata handlers
+  const handleDueDateChange = (dueDate: string | undefined) => {
+    onCardUpdate?.(card.id, { dueDate });
+  };
+
+  const handlePriorityChange = (priority: PriorityLevel | undefined) => {
+    onCardUpdate?.(card.id, { priority });
+  };
+
+  const handleAssigneesChange = (assignedTo: string[]) => {
+    onCardUpdate?.(card.id, { assignedTo });
+  };
+
+  const handleEstimateChange = (estimatedHours: number | undefined) => {
+    onCardUpdate?.(card.id, { estimatedHours });
+  };
+
+  const handleActualChange = (actualHours: number | undefined) => {
+    onCardUpdate?.(card.id, { actualHours });
+  };
+
+  const handleTagsChange = (tags: string[]) => {
+    onCardUpdate?.(card.id, { tags });
+  };
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
 
   useEffect(() => {
     const node = scrollContainerRef.current;
@@ -220,6 +254,30 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
             <Icon name="close" className="w-5 h-5" />
           </motion.button>
         </header>
+
+        {/* Card Metadata Section */}
+        <div className="px-4 md:px-6 py-3 md:py-4 border-b border-slate-800 bg-slate-900/40 space-y-3">
+          {/* Row 1: Due Date, Priority, Assignees */}
+          <div className="flex flex-wrap items-center gap-3">
+            <DueDatePicker dueDate={card.dueDate} onChange={handleDueDateChange} />
+            <PrioritySelector priority={card.priority} onChange={handlePriorityChange} />
+            <div className="flex items-center gap-2">
+              <Icon name="users" className="w-4 h-4 text-slate-500" />
+              <AssigneeSelector assignees={card.assignedTo} onChange={handleAssigneesChange} />
+            </div>
+          </div>
+
+          {/* Row 2: Time Tracker */}
+          <TimeTracker
+            estimatedHours={card.estimatedHours}
+            actualHours={card.actualHours}
+            onEstimateChange={handleEstimateChange}
+            onActualChange={handleActualChange}
+          />
+
+          {/* Row 3: Tags */}
+          <TagSelector tags={card.tags} onChange={handleTagsChange} />
+        </div>
 
         <section className="flex-1 overflow-hidden flex flex-col">
           {error && (
