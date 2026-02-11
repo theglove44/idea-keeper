@@ -36,6 +36,10 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({
 }) => {
   const [newCardText, setNewCardText] = useState('');
   const [targetColumnId, setTargetColumnId] = useState<string>('');
+  const [filterQuery, setFilterQuery] = useState('');
+  const [showOverdueOnly, setShowOverdueOnly] = useState(false);
+  const [showHighPriorityOnly, setShowHighPriorityOnly] = useState(false);
+  const [showAssignedOnly, setShowAssignedOnly] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
   const [dragInfo, setDragInfo] = useState<DragInfo>(null);
@@ -71,6 +75,41 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({
     }).length;
     return { total: allCards.length, done: doneCards, overdue: overdueCards };
   }, [idea]);
+
+  const hasActiveFilters =
+    filterQuery.trim().length > 0 || showOverdueOnly || showHighPriorityOnly || showAssignedOnly;
+
+  const filteredColumns = useMemo(() => {
+    if (!idea) return [];
+
+    const query = filterQuery.trim().toLowerCase();
+    const now = Date.now();
+
+    const isCardOverdue = (card: Card) => {
+      if (!card.dueDate) return false;
+      const due = new Date(card.dueDate).getTime();
+      return Number.isFinite(due) && due < now;
+    };
+
+    return idea.columns.map((column) => {
+      const filteredCards = column.cards.filter((card) => {
+        const matchesQuery =
+          !query ||
+          card.text.toLowerCase().includes(query) ||
+          (card.tags || []).some((tag) => tag.toLowerCase().includes(query));
+        const matchesOverdue = !showOverdueOnly || isCardOverdue(card);
+        const matchesPriority = !showHighPriorityOnly || card.priority === 'high' || card.priority === 'critical';
+        const matchesAssigned = !showAssignedOnly || (card.assignedTo?.length || 0) > 0;
+
+        return matchesQuery && matchesOverdue && matchesPriority && matchesAssigned;
+      });
+
+      return {
+        ...column,
+        filteredCards,
+      };
+    });
+  }, [idea, filterQuery, showAssignedOnly, showHighPriorityOnly, showOverdueOnly]);
 
   const handleAddCard = (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,29 +279,79 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({
       
       {/* AI & Actions */}
       <div className="p-3 md:p-4 flex-shrink-0 border-b border-border/80 bg-surface-dark/35">
-         <button
-            onClick={handleBrainstorm}
-            disabled={isLoadingAi}
-            data-tour="brainstorm-button"
-            className="flex items-center gap-2 px-3 py-1.5 bg-surface-elevated/85 text-text-secondary text-xs md:text-sm rounded-lg border border-border hover:bg-surface-overlay transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoadingAi ? (
-              <>
-                <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-                <span>Brainstorming...</span>
-              </>
-            ) : (
-              <>
-                <Icon name="sparkles" className="w-4 h-4" />
-                <span>Brainstorm with AI</span>
-              </>
+        <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col md:flex-row md:items-center gap-2">
+            <input
+              type="text"
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              placeholder="Filter cards by text or tag..."
+              className="input-field text-xs md:text-sm"
+              aria-label="Filter cards"
+            />
+            <button
+              type="button"
+              onClick={handleBrainstorm}
+              disabled={isLoadingAi}
+              data-tour="brainstorm-button"
+              className="flex items-center justify-center gap-2 px-3 py-2 bg-surface-elevated/85 text-text-secondary text-xs md:text-sm rounded-lg border border-border hover:bg-surface-overlay transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoadingAi ? (
+                <>
+                  <LoadingSpinner size="sm" className="border-white border-t-transparent" />
+                  <span>Brainstorming...</span>
+                </>
+              ) : (
+                <>
+                  <Icon name="sparkles" className="w-4 h-4" />
+                  <span>Brainstorm with AI</span>
+                </>
+              )}
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowOverdueOnly((prev) => !prev)}
+              className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${showOverdueOnly ? 'bg-status-error/15 text-status-error border-status-error/50' : 'bg-surface-elevated/80 text-text-secondary border-border hover:bg-surface-overlay'}`}
+            >
+              Overdue
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowHighPriorityOnly((prev) => !prev)}
+              className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${showHighPriorityOnly ? 'bg-brand-orange-500/15 text-brand-orange-300 border-brand-orange-500/50' : 'bg-surface-elevated/80 text-text-secondary border-border hover:bg-surface-overlay'}`}
+            >
+              High Priority
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAssignedOnly((prev) => !prev)}
+              className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${showAssignedOnly ? 'bg-brand-cyan-500/15 text-brand-cyan-300 border-brand-cyan-500/50' : 'bg-surface-elevated/80 text-text-secondary border-border hover:bg-surface-overlay'}`}
+            >
+              Assigned
+            </button>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterQuery('');
+                  setShowOverdueOnly(false);
+                  setShowHighPriorityOnly(false);
+                  setShowAssignedOnly(false);
+                }}
+                className="px-2.5 py-1.5 rounded-full text-xs border border-border text-text-tertiary hover:text-text-secondary hover:bg-surface-overlay transition-colors"
+              >
+                Clear Filters
+              </button>
             )}
-          </button>
+          </div>
+        </div>
       </div>
 
       {/* Kanban Board */}
       <div data-tour="kanban-board" className="flex-grow flex flex-row p-3 md:p-4 gap-3 md:gap-4 overflow-x-auto overflow-y-hidden snap-x snap-mandatory">
-        {idea.columns.map((column) => (
+        {filteredColumns.map((column) => (
             <div
                 key={column.id}
                 onDragOver={(e) => onDragOver(e, column.id)}
@@ -274,7 +363,9 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({
                   <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
                     <span className="status-dot-active"></span>
                     {column.title}
-                    <span className="ml-auto text-xs text-text-muted bg-surface-overlay px-2 py-0.5 rounded-full">{column.cards.length}</span>
+                    <span className="ml-auto text-xs text-text-muted bg-surface-overlay px-2 py-0.5 rounded-full">
+                      {hasActiveFilters ? `${column.filteredCards.length}/${column.cards.length}` : column.cards.length}
+                    </span>
                   </h3>
                 </div>
                 <div className="p-3 flex-grow overflow-y-auto space-y-3 scrollbar-custom">
@@ -283,7 +374,12 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({
                         Drop cards here or add one from the quick composer below.
                       </div>
                     )}
-                    {column.cards.map((card, index) => (
+                    {column.cards.length > 0 && column.filteredCards.length === 0 && (
+                      <div className="h-full min-h-[120px] rounded-lg border border-dashed border-border/80 bg-surface-dark/25 text-text-muted text-xs flex items-center justify-center px-3 text-center">
+                        No cards match current filters in this column.
+                      </div>
+                    )}
+                    {column.filteredCards.map((card, index) => (
                        <motion.div
                          key={card.id}
                          draggable={editingCardId !== card.id}
