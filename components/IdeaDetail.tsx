@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Idea, Card, Column } from '../types';
 import Icon from './Icon';
@@ -13,6 +13,9 @@ type IdeaDetailProps = {
   onMoveCard: (cardId: string, sourceColumnId: string, destColumnId: string, ideaId: string) => void;
   onEditCard: (cardId: string, newText: string, ideaId: string) => void;
   onOpenCardDetail: (ideaId: string, ideaTitle: string, columnId: string, columnTitle: string, card: Card) => void;
+  onCreateIdea: () => void;
+  onOpenSearch: () => void;
+  onOpenShortcuts: () => void;
 };
 
 type DragInfo = {
@@ -20,8 +23,19 @@ type DragInfo = {
   sourceColumnId: string;
 } | null;
 
-const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, onMoveCard, onEditCard, onOpenCardDetail }) => {
+const IdeaDetail: React.FC<IdeaDetailProps> = ({
+  idea,
+  onAddCard,
+  onStartEdit,
+  onMoveCard,
+  onEditCard,
+  onOpenCardDetail,
+  onCreateIdea,
+  onOpenSearch,
+  onOpenShortcuts,
+}) => {
   const [newCardText, setNewCardText] = useState('');
+  const [targetColumnId, setTargetColumnId] = useState<string>('');
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
   const [dragInfo, setDragInfo] = useState<DragInfo>(null);
@@ -33,10 +47,35 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
   const [brainstormResult, setBrainstormResult] = useState<string | null>(null);
   const [isCardAILoading, setIsCardAILoading] = useState(false);
 
+  useEffect(() => {
+    if (!idea?.columns?.length) {
+      setTargetColumnId('');
+      return;
+    }
+    if (!targetColumnId || !idea.columns.some((column) => column.id === targetColumnId)) {
+      setTargetColumnId(idea.columns[0].id);
+    }
+  }, [idea, targetColumnId]);
+
+  const boardStats = useMemo(() => {
+    if (!idea) {
+      return { total: 0, done: 0, overdue: 0 };
+    }
+    const allCards = idea.columns.flatMap((column) => column.cards);
+    const doneCards = idea.columns.find((column) => column.id === 'done')?.cards.length || 0;
+    const now = Date.now();
+    const overdueCards = allCards.filter((card) => {
+      if (!card.dueDate) return false;
+      const due = new Date(card.dueDate).getTime();
+      return Number.isFinite(due) && due < now;
+    }).length;
+    return { total: allCards.length, done: doneCards, overdue: overdueCards };
+  }, [idea]);
+
   const handleAddCard = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newCardText.trim() && idea && idea.columns.length > 0) {
-      onAddCard(idea.id, idea.columns[0].id, newCardText);
+    if (newCardText.trim() && idea && targetColumnId) {
+      onAddCard(idea.id, targetColumnId, newCardText);
       setNewCardText('');
     }
   };
@@ -134,11 +173,17 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
 
   if (!idea) {
     return (
-      <main className="flex-1 flex items-center justify-center text-slate-500 p-4">
-        <div className="text-center">
-          <p className="text-lg md:text-xl">Select an idea to view details</p>
-          <p className="text-sm md:text-base">or create a new one to get started.</p>
-        </div>
+      <main className="flex-1 flex items-center justify-center p-4">
+        <EmptyState
+          variant="no-ideas"
+          title="No active idea selected"
+          description="Pick an idea from the left or create a fresh one to start organizing work."
+          action={{
+            label: 'Create New Idea',
+            onClick: onCreateIdea,
+            icon: 'plus',
+          }}
+        />
       </main>
     );
   }
@@ -147,19 +192,50 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
     <main className="flex-1 flex flex-col h-full bg-transparent overflow-hidden md:ml-0 ml-0">
       {/* Header */}
       <div className="p-3 md:p-4 border-b border-border/80 flex-shrink-0 bg-surface-dark/45 backdrop-blur-sm">
-        <div className="flex justify-between items-center gap-2 md:gap-4">
+        <div className="flex justify-between items-start gap-3 md:gap-4">
+          <div className="min-w-0">
             <h2 className="text-xl md:text-2xl font-extrabold tracking-tight text-text-primary truncate">{idea.title}</h2>
-            <motion.button
-                onClick={() => onStartEdit(idea)}
-                className="p-2 rounded-full text-text-tertiary hover:bg-surface-overlay hover:text-text-primary transition-colors flex-shrink-0"
-                aria-label="Edit Idea"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
+            <p className="text-text-tertiary text-sm md:text-base mt-1 truncate">{idea.summary}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-1 text-xs rounded-full border border-border bg-surface-elevated/70 text-text-secondary">
+                {boardStats.total} total cards
+              </span>
+              <span className="px-2.5 py-1 text-xs rounded-full border border-border bg-surface-elevated/70 text-text-secondary">
+                {boardStats.done} done
+              </span>
+              <span className={`px-2.5 py-1 text-xs rounded-full border ${boardStats.overdue > 0 ? 'border-status-error/50 text-status-error bg-status-error/10' : 'border-border text-text-secondary bg-surface-elevated/70'}`}>
+                {boardStats.overdue} overdue
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={onOpenSearch}
+              className="btn-ghost text-xs md:text-sm"
+              aria-label="Search"
             >
-                <Icon name="pencil" className="w-5 h-5"/>
+              Search
+            </button>
+            <button
+              type="button"
+              onClick={onOpenShortcuts}
+              className="btn-ghost text-xs md:text-sm"
+              aria-label="Open keyboard shortcuts"
+            >
+              ?
+            </button>
+            <motion.button
+              onClick={() => onStartEdit(idea)}
+              className="p-2 rounded-full text-text-tertiary hover:bg-surface-overlay hover:text-text-primary transition-colors flex-shrink-0"
+              aria-label="Edit Idea"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <Icon name="pencil" className="w-5 h-5"/>
             </motion.button>
+          </div>
         </div>
-        <p className="text-text-tertiary text-sm md:text-base mt-1 truncate">{idea.summary}</p>
       </div>
       
       {/* AI & Actions */}
@@ -185,14 +261,14 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
       </div>
 
       {/* Kanban Board */}
-      <div data-tour="kanban-board" className="flex-grow flex flex-col md:flex-row p-3 md:p-4 gap-3 md:gap-4 md:space-x-0 overflow-y-auto md:overflow-x-auto md:overflow-y-hidden">
+      <div data-tour="kanban-board" className="flex-grow flex flex-row p-3 md:p-4 gap-3 md:gap-4 overflow-x-auto overflow-y-hidden snap-x snap-mandatory">
         {idea.columns.map((column) => (
             <div
                 key={column.id}
                 onDragOver={(e) => onDragOver(e, column.id)}
                 onDragLeave={() => setDragOverColumn(null)}
                 onDrop={(e) => onDrop(e, column.id)}
-                className={`w-full md:w-72 flex-shrink-0 bg-surface-elevated/85 border border-border/70 rounded-xl flex flex-col transition-colors duration-200 ${dragOverColumn === column.id ? 'bg-surface-overlay/90 border-brand-cyan-500/45' : ''}`}
+                className={`w-[82vw] sm:w-80 md:w-80 flex-shrink-0 snap-start bg-surface-elevated/85 border border-border/70 rounded-xl flex flex-col transition-colors duration-200 ${dragOverColumn === column.id ? 'bg-surface-overlay/90 border-brand-cyan-500/45' : ''}`}
             >
                 <div className="p-4 border-b border-border/70 flex-shrink-0 bg-gradient-to-r from-brand-purple-900/20 to-brand-cyan-900/20">
                   <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
@@ -202,6 +278,11 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
                   </h3>
                 </div>
                 <div className="p-3 flex-grow overflow-y-auto space-y-3 scrollbar-custom">
+                    {column.cards.length === 0 && (
+                      <div className="h-full min-h-[120px] rounded-lg border border-dashed border-border/80 bg-surface-dark/25 text-text-muted text-xs flex items-center justify-center px-3 text-center">
+                        Drop cards here or add one from the quick composer below.
+                      </div>
+                    )}
                     {column.cards.map((card, index) => (
                        <motion.div
                          key={card.id}
@@ -305,19 +386,31 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
 
       {/* Input Form */}
       <div className="p-3 md:p-4 border-t border-border/80 flex-shrink-0 bg-surface-dark/40">
-        <form onSubmit={handleAddCard} className="flex items-center gap-2 md:gap-3">
+        <form onSubmit={handleAddCard} className="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3">
+          <select
+            value={targetColumnId}
+            onChange={(e) => setTargetColumnId(e.target.value)}
+            className="bg-surface-elevated/85 border border-border rounded-lg px-3 py-2 text-sm text-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-cyan-500"
+            aria-label="Target column for new card"
+          >
+            {idea.columns.map((column) => (
+              <option key={column.id} value={column.id}>
+                {column.title}
+              </option>
+            ))}
+          </select>
           <input
             type="text"
             value={newCardText}
             onChange={(e) => setNewCardText(e.target.value)}
-            placeholder={`Add card to "${idea.columns[0]?.title || ''}"...`}
+            placeholder={`Add card to "${idea.columns.find((column) => column.id === targetColumnId)?.title || idea.columns[0]?.title || ''}"...`}
             className="flex-1 bg-surface-elevated/85 border border-border rounded-lg px-3 md:px-4 py-2 text-sm md:text-base text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand-cyan-500 focus:border-transparent transition-shadow"
-            disabled={idea.columns.length === 0}
+            disabled={idea.columns.length === 0 || !targetColumnId}
           />
           <motion.button
             type="submit"
             className="p-2 md:p-2.5 bg-gradient-brand text-white rounded-full border border-brand-cyan-500/30 hover:brightness-110 disabled:bg-surface-overlay disabled:cursor-not-allowed transition-colors duration-200 flex-shrink-0"
-            disabled={!newCardText.trim()}
+            disabled={!newCardText.trim() || !targetColumnId}
             aria-label="Add Card"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}

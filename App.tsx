@@ -55,12 +55,12 @@ const IdeaForm: React.FC<{
                 aria-modal="true"
                 aria-labelledby="idea-form-title"
                 tabIndex={-1}
-                className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-4 md:p-6"
+                className="w-full max-w-md bg-surface-elevated/95 border border-border rounded-xl shadow-elevated p-4 md:p-6"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex justify-between items-center mb-3 md:mb-4">
-                    <h2 id="idea-form-title" className="text-xl md:text-2xl font-bold text-slate-100">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
-                    <button type="button" onClick={onClose} aria-label="Close idea form" className="p-2 rounded-full text-slate-400 hover:bg-slate-700">
+                    <h2 id="idea-form-title" className="text-xl md:text-2xl font-extrabold tracking-tight text-text-primary">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
+                    <button type="button" onClick={onClose} aria-label="Close idea form" className="p-2 rounded-full text-text-tertiary hover:bg-surface-overlay">
                         <Icon name="close" className="w-5 h-5"/>
                     </button>
                 </div>
@@ -95,7 +95,7 @@ const IdeaForm: React.FC<{
                         />
                     </div>
                     <div className="flex justify-end pt-1 md:pt-2">
-                        <button type="submit" className="px-4 md:px-5 py-2 text-sm md:text-base bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors" disabled={!title.trim() || isSaving}>
+                        <button type="submit" className="btn-primary text-sm md:text-base" disabled={!title.trim() || isSaving}>
                             {isSaving ? 'Saving...' : 'Save Idea'}
                         </button>
                     </div>
@@ -586,6 +586,9 @@ function App() {
         onMoveCard={handleMoveCard}
         onEditCard={handleEditCard}
         onOpenCardDetail={handleOpenCardDetail}
+        onCreateIdea={() => setIsAddingNewIdea(true)}
+        onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenShortcuts={() => setIsShortcutsHelpOpen(true)}
       />
 
       {/* Modals */}
