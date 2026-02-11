@@ -28,6 +28,13 @@ const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, 
     );
   }, [ideas, filterText]);
 
+  const handleDeleteIdeaClick = (ideaId: string, ideaTitle: string) => {
+    const shouldDelete = window.confirm(`Delete "${ideaTitle}"? This cannot be undone.`);
+    if (shouldDelete) {
+      onDeleteIdea(ideaId);
+    }
+  };
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -108,7 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, 
                   </motion.button>
                   <motion.button
                     type="button"
-                    onClick={() => onDeleteIdea(idea.id)}
+                    onClick={() => handleDeleteIdeaClick(idea.id, idea.title)}
                     className={`absolute top-2 right-2 p-2 md:p-1 rounded opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 ${
                       selectedIdeaId === idea.id ? 'hover:bg-white/20 text-white' : 'hover:bg-surface-overlay text-text-secondary'
                     }`}
@@ -146,7 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, 
       </div>
       <div className="p-3 border-t border-border flex-shrink-0">
          <motion.a
-          href="https://forms.gle/your-feedback-form-link" // <-- TODO: Replace with your actual feedback form link
+          href="https://github.com/theglove44/idea-keeper/issues/new"
           target="_blank"
           rel="noopener noreferrer"
           className="w-full flex items-center justify-center gap-2 p-3 rounded-lg text-text-tertiary hover:bg-surface-overlay hover:text-text-primary border border-border/70 hover:border-border-light transition-all duration-200 text-sm font-medium"
