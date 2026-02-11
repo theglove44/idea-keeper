@@ -4,6 +4,7 @@ import { Card, SeverityLevel } from '../types';
 import Icon from './Icon';
 import { LoadingSpinner } from './LoadingSkeleton';
 import { useCardComments } from '../hooks/useCardComments';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { createMIReport, createUpgradeReport } from '../services/reportService';
 
 type CardDetailModalProps = {
@@ -42,18 +43,16 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState<string | null>(null);
   const [isReportSubmitting, setIsReportSubmitting] = useState(false);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  useFocusTrap({
+    active: true,
+    containerRef: dialogRef,
+    initialFocusRef: inputRef,
+    onEscape: onClose,
+  });
 
   useEffect(() => {
     const node = scrollContainerRef.current;
@@ -64,10 +63,6 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
       node.scrollTop = node.scrollHeight;
     }
   }, [comments.length]);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
 
   useEffect(() => {
     setMiSummary(card.text);
@@ -182,16 +177,21 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
   const isActionBusy = isSubmitting || isReportSubmitting;
 
   return (
-    <div
+    <motion.div
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 md:p-4"
       onClick={handleBackdropClick}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div
+      <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="card-detail-title"
         className="w-full max-w-3xl max-h-[95vh] md:max-h-[90vh] bg-slate-900 border border-slate-800 rounded-xl md:rounded-2xl shadow-2xl flex flex-col"
         onClick={handleContainerClick}
+        tabIndex={-1}
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
@@ -205,11 +205,12 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
               </span>
               <span className="text-xs text-slate-500 truncate">{formatTimestamp(card.createdAt)}</span>
             </div>
-            <h2 className="text-lg md:text-2xl font-semibold text-slate-100 whitespace-pre-wrap">
+            <h2 id="card-detail-title" className="text-lg md:text-2xl font-semibold text-slate-100 whitespace-pre-wrap">
               {card.text}
             </h2>
           </div>
           <motion.button
+            type="button"
             onClick={onClose}
             className="p-1.5 md:p-2 rounded-full text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition flex-shrink-0"
             aria-label="Close card detail"
@@ -548,8 +549,8 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
             )}
           </div>
         </section>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

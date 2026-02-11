@@ -112,6 +112,17 @@ export default function OnboardingTour({ onComplete }: OnboardingTourProps) {
     setCurrentStep((prev) => Math.max(0, prev - 1));
   };
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleSkip();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Calculate tooltip position
   const getTooltipPosition = () => {
     if (!targetRect) {
@@ -154,7 +165,7 @@ export default function OnboardingTour({ onComplete }: OnboardingTourProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50 pointer-events-none">
       {/* Backdrop with spotlight */}
       <div className="absolute inset-0 pointer-events-none">
         <svg className="w-full h-full">
@@ -201,12 +212,16 @@ export default function OnboardingTour({ onComplete }: OnboardingTourProps) {
 
       {/* Tooltip */}
       <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-tour-title"
         key={currentStep}
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="absolute bg-surface-dark border border-border-subtle rounded-xl shadow-2xl p-6 max-w-md"
+        className="absolute pointer-events-auto bg-surface-dark border border-border-subtle rounded-xl shadow-2xl p-6 max-w-md"
         style={getTooltipPosition()}
+        tabIndex={-1}
       >
         {/* Progress indicator */}
         <div className="flex items-center gap-1 mb-4">
@@ -221,7 +236,7 @@ export default function OnboardingTour({ onComplete }: OnboardingTourProps) {
         </div>
 
         {/* Content */}
-        <h3 className="text-xl font-semibold text-text-primary mb-2">
+        <h3 id="onboarding-tour-title" className="text-xl font-semibold text-text-primary mb-2">
           {step.title}
         </h3>
         <p className="text-text-secondary text-sm mb-6">{step.description}</p>
@@ -229,6 +244,7 @@ export default function OnboardingTour({ onComplete }: OnboardingTourProps) {
         {/* Actions */}
         <div className="flex items-center justify-between">
           <button
+            type="button"
             onClick={handleSkip}
             className="text-text-muted hover:text-text-secondary text-sm transition-colors"
           >
@@ -238,6 +254,7 @@ export default function OnboardingTour({ onComplete }: OnboardingTourProps) {
           <div className="flex items-center gap-2">
             {currentStep > 0 && (
               <button
+                type="button"
                 onClick={handlePrevious}
                 className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
               >
@@ -245,6 +262,7 @@ export default function OnboardingTour({ onComplete }: OnboardingTourProps) {
               </button>
             )}
             <button
+              type="button"
               onClick={handleNext}
               className="px-4 py-2 text-sm font-semibold bg-brand-purple text-white rounded-lg hover:bg-brand-purple/90 transition-colors"
             >

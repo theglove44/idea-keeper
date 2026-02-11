@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Idea, Card, Column } from '../types';
-import { getBrainstormSuggestions, getCardBrainstormSuggestions } from '../services/geminiService';
 import Icon from './Icon';
 import { LoadingSpinner, LoadingCards } from './LoadingSkeleton';
 import EmptyState from './EmptyState';
@@ -45,9 +44,13 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
     if (!idea) return;
     setIsLoadingAi(true);
     setAiSuggestion(null);
-    const suggestion = await getBrainstormSuggestions(idea);
-    setAiSuggestion(suggestion);
-    setIsLoadingAi(false);
+    try {
+      const { getBrainstormSuggestions } = await import('../services/geminiService');
+      const suggestion = await getBrainstormSuggestions(idea);
+      setAiSuggestion(suggestion);
+    } finally {
+      setIsLoadingAi(false);
+    }
   };
   
   const onDragStart = (e: React.DragEvent, card: Card, sourceColumnId: string) => {
@@ -107,9 +110,13 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({ idea, onAddCard, onStartEdit, o
     setBrainstormingCard(card);
     setIsCardAILoading(true);
     setBrainstormResult(null);
-    const result = await getCardBrainstormSuggestions(idea, card);
-    setBrainstormResult(result);
-    setIsCardAILoading(false);
+    try {
+      const { getCardBrainstormSuggestions } = await import('../services/geminiService');
+      const result = await getCardBrainstormSuggestions(idea, card);
+      setBrainstormResult(result);
+    } finally {
+      setIsCardAILoading(false);
+    }
   };
 
   const handleCardClick = (card: Card, column: Column) => {

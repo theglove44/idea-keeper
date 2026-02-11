@@ -32,6 +32,7 @@ export default {
         // Brand colors
         brand: {
           purple: {
+            DEFAULT: '#a855f7',
             50: '#faf5ff',
             100: '#f3e8ff',
             200: '#e9d5ff',
@@ -45,6 +46,7 @@ export default {
             950: '#3b0764',
           },
           cyan: {
+            DEFAULT: '#06b6d4',
             50: '#ecfeff',
             100: '#cffafe',
             200: '#a5f3fc',
@@ -58,6 +60,7 @@ export default {
             950: '#083344',
           },
           orange: {
+            DEFAULT: '#f97316',
             50: '#fff7ed',
             100: '#ffedd5',
             200: '#fed7aa',
@@ -74,6 +77,8 @@ export default {
         // Semantic colors for dark mode
         surface: {
           DEFAULT: '#0f172a', // slate-900
+          base: '#0f172a',    // alias for existing class usage
+          dark: '#020617',    // slate-950
           elevated: '#1e293b', // slate-800
           overlay: '#334155',  // slate-700
         },
@@ -85,6 +90,7 @@ export default {
         },
         border: {
           DEFAULT: '#334155',   // slate-700
+          subtle: '#334155',    // alias for existing class usage
           light: '#475569',     // slate-600
           lighter: '#64748b',   // slate-500
         },

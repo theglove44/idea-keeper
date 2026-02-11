@@ -94,31 +94,31 @@ const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, 
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
               >
-                <motion.button
-                  onClick={() => onSelectIdea(idea.id)}
-                  className={`w-full text-left p-3 md:p-3 min-h-[70px] rounded-lg group transition-colors duration-200 flex justify-between items-start ${
-                    selectedIdeaId === idea.id ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800/70 active:bg-slate-800'
-                  }`}
-                  whileHover={{ scale: 1.02, x: 4 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className="flex-grow pr-2">
+                <div className="relative group">
+                  <motion.button
+                    onClick={() => onSelectIdea(idea.id)}
+                    className={`w-full text-left p-3 md:p-3 pr-11 min-h-[70px] rounded-lg transition-colors duration-200 ${
+                      selectedIdeaId === idea.id ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800/70 active:bg-slate-800'
+                    }`}
+                    whileHover={{ scale: 1.02, x: 4 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
                     <h3 className="font-semibold text-sm md:text-base truncate">{idea.title}</h3>
                     <p className={`text-xs md:text-sm truncate ${ selectedIdeaId === idea.id ? 'text-blue-100' : 'text-slate-400'}`}>{idea.summary}</p>
-                  </div>
+                  </motion.button>
                   <motion.button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteIdea(idea.id);
-                    }}
-                    className={`p-2 md:p-1 rounded opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0 ${ selectedIdeaId === idea.id ? 'hover:bg-blue-500' : 'hover:bg-slate-700'}`}
+                    type="button"
+                    onClick={() => onDeleteIdea(idea.id)}
+                    className={`absolute top-2 right-2 p-2 md:p-1 rounded opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 ${
+                      selectedIdeaId === idea.id ? 'hover:bg-blue-500 text-white' : 'hover:bg-slate-700 text-slate-300'
+                    }`}
                     aria-label={`Delete ${idea.title}`}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
                     <Icon name="trash" className="w-4 h-4" />
                   </motion.button>
-                </motion.button>
+                </div>
               </motion.li>
             ))
           ) : filterText ? (

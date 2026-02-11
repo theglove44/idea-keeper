@@ -12,7 +12,7 @@ const REPORT_DIRS = {
 };
 
 const createReportPlugin = (): Plugin => {
-  const registerHandlers = (app: { use: Function }, rootDir: string) => {
+  const registerHandlers = (app: { use: Function }) => {
     const handler = async (
       req: IncomingRequest,
       res: ServerResponse,
@@ -26,7 +26,7 @@ const createReportPlugin = (): Plugin => {
 
       try {
         const body = await readJsonBody(req);
-        const result = await saveReport(type, body, rootDir);
+        const result = await saveReport(type, body);
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify(result));
       } catch (error) {
@@ -46,10 +46,10 @@ const createReportPlugin = (): Plugin => {
   return {
     name: 'report-api-plugin',
     configureServer(server) {
-      registerHandlers(server.middlewares, server.config.root);
+      registerHandlers(server.middlewares);
     },
     configurePreviewServer(server) {
-      registerHandlers(server.middlewares, server.config.root);
+      registerHandlers(server.middlewares);
     },
   };
 };
@@ -77,8 +77,7 @@ const readJsonBody = (req: IncomingRequest): Promise<any> => {
 
 const saveReport = async (
   type: 'mi' | 'upgrade',
-  payload: any,
-  rootDir: string
+  payload: any
 ) => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -137,11 +136,36 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
       },
-      plugins: [react()],
+      plugins: [react(), createReportPlugin()],
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      build: {
+        rollupOptions: {
+          output: {
+            manualChunks(id) {
+              if (!id.includes('node_modules')) return;
+              if (
+                id.includes('/react/') ||
+                id.includes('/react-dom/') ||
+                id.includes('/scheduler/')
+              ) {
+                return 'react-vendor';
+              }
+              if (id.includes('framer-motion')) {
+                return 'motion-vendor';
+              }
+              if (id.includes('@supabase')) {
+                return 'supabase-vendor';
+              }
+              if (id.includes('@google/genai')) {
+                return 'ai-vendor';
+              }
+            },
+          },
+        },
       },
       test: {
         globals: true,

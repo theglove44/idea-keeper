@@ -1,47 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { supabase, supabaseInitializationError } from './services/supabaseClient';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { supabase, supabaseInitializationError, formatSupabaseError } from './services/supabaseClient';
 import { Idea, Card } from './types';
 import Sidebar from './components/Sidebar';
 import IdeaDetail from './components/IdeaDetail';
 import Icon from './components/Icon';
-import CardDetailModal from './components/CardDetailModal';
-import { ToastProvider, useToast } from './components/Toast';
-import SearchModal from './components/SearchModal';
-import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp';
+import { ToastProvider } from './components/Toast';
 import OnboardingTour, { useOnboarding } from './components/OnboardingTour';
 import { useKeyboardShortcut } from './hooks/useKeyboardShortcut';
+import { useFocusTrap } from './hooks/useFocusTrap';
+
+const CardDetailModal = lazy(() => import('./components/CardDetailModal'));
+const SearchModal = lazy(() => import('./components/SearchModal'));
+const KeyboardShortcutsHelp = lazy(() => import('./components/KeyboardShortcutsHelp'));
 
 const IdeaForm: React.FC<{ 
-    onSave: (title: string, summary: string) => void; 
+    onSave: (title: string, summary: string) => Promise<{ success: boolean; error?: string }>; 
     onClose: () => void; 
     idea?: Idea 
 }> = ({ onSave, onClose, idea }) => {
     const isEditMode = !!idea;
     const [title, setTitle] = useState(idea?.title || '');
     const [summary, setSummary] = useState(idea?.summary || '');
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const dialogRef = useRef<HTMLDivElement | null>(null);
+    const titleInputRef = useRef<HTMLInputElement | null>(null);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    useFocusTrap({
+        active: true,
+        containerRef: dialogRef,
+        initialFocusRef: titleInputRef,
+        onEscape: onClose,
+    });
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (title.trim()) {
-            onSave(title, summary);
+        if (!title.trim() || isSaving) return;
+
+        setIsSaving(true);
+        setError(null);
+        const result = await onSave(title, summary);
+        if (!result.success) {
+            setError(result.error || 'Unable to save right now.');
         }
+        setIsSaving(false);
     };
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4" onClick={onClose}>
-            <div className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-4 md:p-6" onClick={(e) => e.stopPropagation()}>
+            <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="idea-form-title"
+                tabIndex={-1}
+                className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-4 md:p-6"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="flex justify-between items-center mb-3 md:mb-4">
-                    <h2 className="text-xl md:text-2xl font-bold text-slate-100">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
-                    <button onClick={onClose} className="p-2 rounded-full text-slate-400 hover:bg-slate-700">
+                    <h2 id="idea-form-title" className="text-xl md:text-2xl font-bold text-slate-100">{isEditMode ? 'Edit Idea' : 'New Idea'}</h2>
+                    <button type="button" onClick={onClose} aria-label="Close idea form" className="p-2 rounded-full text-slate-400 hover:bg-slate-700">
                         <Icon name="close" className="w-5 h-5"/>
                     </button>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
+                    {error && (
+                        <p className="text-sm text-red-300 bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">
+                            {error}
+                        </p>
+                    )}
                     <div>
                         <label htmlFor="title" className="block text-sm font-medium text-text-secondary mb-2">Title</label>
                         <input
                             id="title"
+                            ref={titleInputRef}
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
@@ -62,8 +95,8 @@ const IdeaForm: React.FC<{
                         />
                     </div>
                     <div className="flex justify-end pt-1 md:pt-2">
-                        <button type="submit" className="px-4 md:px-5 py-2 text-sm md:text-base bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors" disabled={!title.trim()}>
-                            Save Idea
+                        <button type="submit" className="px-4 md:px-5 py-2 text-sm md:text-base bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors" disabled={!title.trim() || isSaving}>
+                            {isSaving ? 'Saving...' : 'Save Idea'}
                         </button>
                     </div>
                 </form>
@@ -163,7 +196,10 @@ function App() {
 
   useEffect(() => {
     const fetchIdeas = async () => {
-        const { data: ideasData, error: ideasError } = await supabase!.from('ideas').select('*').order('created_at', { descending: true });
+        const { data: ideasData, error: ideasError } = await supabase!
+          .from('ideas')
+          .select('*')
+          .order('created_at', { ascending: false });
         if (ideasError) {
             console.error("Error fetching ideas:", ideasError);
             return;
@@ -273,7 +309,7 @@ function App() {
     const { data, error } = await supabase!.from('ideas').insert({ title, summary }).select().single();
     if (error) {
         console.error("Error adding idea:", error);
-        return;
+        return { success: false, error: formatSupabaseError(error, 'Failed to save idea.') };
     }
 
     const newIdea: Idea = {
@@ -286,6 +322,7 @@ function App() {
     setIdeas([newIdea, ...ideas]);
     setSelectedIdeaId(newIdea.id);
     setIsAddingNewIdea(false);
+    return { success: true };
   };
 
   const handleDeleteIdea = async (id: string) => {
@@ -328,14 +365,17 @@ function App() {
   };
   
   const handleSaveEditedIdea = async (title: string, summary: string) => {
-    if (!editingIdea) return;
+    if (!editingIdea) {
+      return { success: false, error: 'No idea selected for editing.' };
+    }
     const { error } = await supabase!.from('ideas').update({ title, summary }).eq('id', editingIdea.id);
      if (error) {
         console.error("Error updating idea:", error);
-        return;
+        return { success: false, error: formatSupabaseError(error, 'Failed to update idea.') };
     }
     setIdeas(ideas.map(idea => idea.id === editingIdea.id ? { ...idea, title, summary } : idea));
     setEditingIdea(null);
+    return { success: true };
   };
 
   const handleMoveCard = async (cardId: string, sourceColumnId: string, destColumnId: string, ideaId: string) => {
@@ -512,41 +552,47 @@ function App() {
 
       <AnimatePresence>
         {selectedCardContext && (
-          <CardDetailModal
-            card={selectedCardContext.card}
-            columnTitle={selectedCardContext.columnTitle}
-            ideaId={selectedCardContext.ideaId}
-            ideaTitle={selectedCardContext.ideaTitle}
-            columnId={selectedCardContext.columnId}
-            onCommentAdded={handleIncrementCardCommentCount}
-            onClose={handleCloseCardDetail}
-          />
+          <Suspense fallback={null}>
+            <CardDetailModal
+              card={selectedCardContext.card}
+              columnTitle={selectedCardContext.columnTitle}
+              ideaId={selectedCardContext.ideaId}
+              ideaTitle={selectedCardContext.ideaTitle}
+              columnId={selectedCardContext.columnId}
+              onCommentAdded={handleIncrementCardCommentCount}
+              onClose={handleCloseCardDetail}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
 
       {/* Search Modal */}
-      <SearchModal
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        ideas={ideas}
-        onSelectCard={(ideaId, columnId, cardId) => {
-          const idea = ideas.find((i) => i.id === ideaId);
-          if (!idea) return;
-          const column = idea.columns.find((c) => c.id === columnId);
-          if (!column) return;
-          const card = column.cards.find((c) => c.id === cardId);
-          if (!card) return;
-          setSelectedIdeaId(ideaId);
-          handleOpenCardDetail(ideaId, idea.title, columnId, column.title, card);
-        }}
-        onSelectIdea={(ideaId) => setSelectedIdeaId(ideaId)}
-      />
+      <Suspense fallback={null}>
+        <SearchModal
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          ideas={ideas}
+          onSelectCard={(ideaId, columnId, cardId) => {
+            const idea = ideas.find((i) => i.id === ideaId);
+            if (!idea) return;
+            const column = idea.columns.find((c) => c.id === columnId);
+            if (!column) return;
+            const card = column.cards.find((c) => c.id === cardId);
+            if (!card) return;
+            setSelectedIdeaId(ideaId);
+            handleOpenCardDetail(ideaId, idea.title, columnId, column.title, card);
+          }}
+          onSelectIdea={(ideaId) => setSelectedIdeaId(ideaId)}
+        />
+      </Suspense>
 
       {/* Keyboard Shortcuts Help Modal */}
-      <KeyboardShortcutsHelp
-        isOpen={isShortcutsHelpOpen}
-        onClose={() => setIsShortcutsHelpOpen(false)}
-      />
+      <Suspense fallback={null}>
+        <KeyboardShortcutsHelp
+          isOpen={isShortcutsHelpOpen}
+          onClose={() => setIsShortcutsHelpOpen(false)}
+        />
+      </Suspense>
 
       {/* Onboarding Tour */}
       {showTour && <OnboardingTour onComplete={completeTour} />}
