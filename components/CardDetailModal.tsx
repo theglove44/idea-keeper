@@ -320,7 +320,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
           </div>
         </div>
 
-        <section className="flex-1 min-h-0 flex flex-col">
+        <section className="flex flex-col">
           <div className="px-4 md:px-6 py-2.5 border-b border-slate-800 bg-slate-900/70 flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-slate-300">Activity</h3>
             <span className="text-xs text-slate-500">{activityCountLabel}</span>
@@ -332,7 +332,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
           )}
           <div
             ref={scrollContainerRef}
-            className="flex-1 min-h-0 px-4 md:px-6 py-3 md:py-5 space-y-3 md:space-y-4 bg-slate-900/40"
+            className="px-4 md:px-6 py-3 md:py-5 space-y-3 md:space-y-4 bg-slate-900/40"
           >
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-12 text-text-tertiary">
@@ -377,7 +377,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
               })
             )}
           </div>
-          <div className="shrink-0 p-4 md:p-6 border-t border-slate-800 bg-slate-900/60 flex flex-col gap-3 md:gap-4">
+          <div className="p-4 md:p-6 border-t border-slate-800 bg-slate-900/60 flex flex-col gap-3 md:gap-4">
             <div className="space-y-2">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
                 <h4 className="text-sm font-semibold text-slate-200">Next Action</h4>
