@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, type KeyboardEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Idea, Card } from '../types';
 import Icon from './Icon';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -68,14 +69,22 @@ export default function SearchModal({
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const resultsListId = 'search-results-list';
+
+  useFocusTrap({
+    active: isOpen,
+    containerRef: dialogRef,
+    initialFocusRef: inputRef,
+    onEscape: onClose,
+  });
 
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
       setQuery('');
       setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
 
@@ -133,31 +142,24 @@ export default function SearchModal({
     return searchResults.sort((a, b) => b.score - a.score).slice(0, 10);
   }, [query, ideas]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-
-      if (e.key === 'ArrowDown') {
+  const handleDialogKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      if (results[selectedIndex]) {
         e.preventDefault();
-        setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1));
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedIndex((prev) => Math.max(prev - 1, 0));
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        if (results[selectedIndex]) {
-          handleSelect(results[selectedIndex]);
-        }
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
+        handleSelect(results[selectedIndex]);
       }
-    };
+    }
+  };
 
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, selectedIndex, results]);
+  useEffect(() => {
+    setSelectedIndex((prev) => Math.min(prev, Math.max(results.length - 1, 0)));
+  }, [results.length]);
 
   // Auto-scroll selected item into view
   useEffect(() => {
@@ -197,17 +199,24 @@ export default function SearchModal({
           onClick={onClose}
         >
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="search-modal-title"
             initial={{ opacity: 0, scale: 0.95, y: -20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="bg-surface-dark border border-border-subtle rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={handleDialogKeyDown}
+            tabIndex={-1}
           >
             {/* Search Input */}
             <div className="border-b border-border-subtle p-4">
               <div className="flex items-center gap-3">
                 <Icon name="sparkles" className="w-5 h-5 text-brand-purple" />
+                <h2 id="search-modal-title" className="sr-only">Search ideas and cards</h2>
                 <input
                   ref={inputRef}
                   type="text"
@@ -218,6 +227,9 @@ export default function SearchModal({
                   }}
                   placeholder="Search ideas and cards..."
                   className="flex-1 bg-transparent text-text-primary placeholder-text-muted text-lg outline-none"
+                  aria-controls={resultsListId}
+                  aria-autocomplete="list"
+                  aria-activedescendant={results[selectedIndex] ? `${results[selectedIndex].type}-${results[selectedIndex].id}` : undefined}
                 />
                 <kbd className="px-2 py-1 text-xs font-semibold text-text-secondary bg-surface-base border border-border-subtle rounded">
                   ESC
@@ -227,6 +239,8 @@ export default function SearchModal({
 
             {/* Results */}
             <div
+              id={resultsListId}
+              role="listbox"
               ref={resultsRef}
               className="max-h-[400px] overflow-y-auto scrollbar-custom"
             >
@@ -255,6 +269,9 @@ export default function SearchModal({
 
               {results.map((result, index) => (
                 <button
+                  id={`${result.type}-${result.id}`}
+                  role="option"
+                  aria-selected={index === selectedIndex}
                   key={`${result.type}-${result.id}`}
                   onClick={() => handleSelect(result)}
                   className={`w-full text-left p-4 border-b border-border-subtle last:border-b-0 transition-colors ${

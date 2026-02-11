@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KEYBOARD_SHORTCUTS, getShortcutDisplay } from '../hooks/useKeyboardShortcut';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import Icon from './Icon';
 
 interface KeyboardShortcutsHelpProps {
@@ -11,6 +13,16 @@ export default function KeyboardShortcutsHelp({
   isOpen,
   onClose,
 }: KeyboardShortcutsHelpProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useFocusTrap({
+    active: isOpen,
+    containerRef: dialogRef,
+    initialFocusRef: closeButtonRef,
+    onEscape: onClose,
+  });
+
   // Group shortcuts by category
   const categories = KEYBOARD_SHORTCUTS.reduce(
     (acc, shortcut) => {
@@ -31,17 +43,22 @@ export default function KeyboardShortcutsHelp({
           onClick={onClose}
         >
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shortcuts-help-title"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="bg-surface-dark border border-border-subtle rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+            tabIndex={-1}
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-brand-purple/10 to-brand-cyan/10 border-b border-border-subtle px-6 py-4 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-text-primary">
+                <h2 id="shortcuts-help-title" className="text-xl font-semibold text-text-primary">
                   Keyboard Shortcuts
                 </h2>
                 <p className="text-sm text-text-secondary mt-1">
@@ -49,6 +66,8 @@ export default function KeyboardShortcutsHelp({
                 </p>
               </div>
               <button
+                ref={closeButtonRef}
+                type="button"
                 onClick={onClose}
                 className="text-text-secondary hover:text-text-primary transition-colors p-2 hover:bg-surface-elevated rounded-lg"
                 aria-label="Close"
