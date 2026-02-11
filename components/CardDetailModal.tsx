@@ -37,6 +37,8 @@ const defaultChecklist = ['Define scope', 'Review plan', 'QA sign-off'];
 
 const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, columnId, ideaId, ideaTitle, onCommentAdded, onCardUpdate, onClose }) => {
   const { comments, isLoading, isSubmitting, error, submitComment } = useCardComments(card?.id ?? null);
+  const normalizedAssignees = Array.isArray(card.assignedTo) ? card.assignedTo : [];
+  const normalizedTags = Array.isArray(card.tags) ? card.tags : [];
   const [draft, setDraft] = useState('');
   const [composerMode, setComposerMode] = useState<ComposerMode>('comment');
   const [miSummary, setMiSummary] = useState(card.text);
@@ -293,7 +295,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
               </div>
               <div className="mt-3 pt-3 border-t border-slate-800/80">
                 <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Assignees</p>
-                <AssigneeSelector assignees={card.assignedTo} onChange={handleAssigneesChange} />
+                <AssigneeSelector assignees={normalizedAssignees} onChange={handleAssigneesChange} />
               </div>
             </div>
             <div className="rounded-xl border border-slate-800/90 bg-slate-950/35 p-3 md:p-4">
@@ -316,7 +318,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
               <Icon name="tag" className="w-4 h-4 text-slate-400" />
               <h3 className="text-sm font-semibold text-slate-200">Tags</h3>
             </div>
-            <TagSelector tags={card.tags} onChange={handleTagsChange} />
+            <TagSelector tags={normalizedTags} onChange={handleTagsChange} />
           </div>
         </div>
 

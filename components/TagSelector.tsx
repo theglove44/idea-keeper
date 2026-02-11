@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Icon from './Icon';
 
 type TagSelectorProps = {
-  tags?: string[];
+  tags?: string[] | null;
   onChange: (tags: string[]) => void;
   className?: string;
   suggestions?: string[]; // Common tags to suggest
@@ -45,18 +45,19 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   className = '',
   suggestions = defaultSuggestions,
 }) => {
+  const safeTags = Array.isArray(tags) ? tags : [];
   const [isAdding, setIsAdding] = useState(false);
   const [newTag, setNewTag] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const filteredSuggestions = suggestions.filter(
-    (s) => !tags.includes(s) && s.toLowerCase().includes(newTag.toLowerCase())
+    (s) => !safeTags.includes(s) && s.toLowerCase().includes(newTag.toLowerCase())
   );
 
   const handleAdd = (tag: string) => {
     const trimmed = tag.trim().toLowerCase();
-    if (trimmed && !tags.includes(trimmed)) {
-      onChange([...tags, trimmed]);
+    if (trimmed && !safeTags.includes(trimmed)) {
+      onChange([...safeTags, trimmed]);
     }
     setNewTag('');
     setIsAdding(false);
@@ -64,7 +65,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   };
 
   const handleRemove = (tag: string) => {
-    onChange(tags.filter((t) => t !== tag));
+    onChange(safeTags.filter((t) => t !== tag));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -91,7 +92,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
     <div className={`flex flex-wrap items-center gap-2 ${className}`}>
       {/* Display tags */}
       <AnimatePresence>
-        {tags.map((tag) => {
+        {safeTags.map((tag) => {
           const colors = getTagColor(tag);
           return (
             <motion.div

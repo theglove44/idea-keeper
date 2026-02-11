@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Icon from './Icon';
 
 type AssigneeSelectorProps = {
-  assignees?: string[];
+  assignees?: string[] | null;
   onChange: (assignees: string[]) => void;
   className?: string;
 };
@@ -44,20 +44,21 @@ const getInitials = (name: string): string => {
 };
 
 const AssigneeSelector: React.FC<AssigneeSelectorProps> = ({ assignees = [], onChange, className = '' }) => {
+  const safeAssignees = Array.isArray(assignees) ? assignees : [];
   const [isAdding, setIsAdding] = useState(false);
   const [newAssignee, setNewAssignee] = useState('');
 
   const handleAdd = () => {
     const trimmed = newAssignee.trim();
-    if (trimmed && !assignees.includes(trimmed)) {
-      onChange([...assignees, trimmed]);
+    if (trimmed && !safeAssignees.includes(trimmed)) {
+      onChange([...safeAssignees, trimmed]);
     }
     setNewAssignee('');
     setIsAdding(false);
   };
 
   const handleRemove = (assignee: string) => {
-    onChange(assignees.filter((a) => a !== assignee));
+    onChange(safeAssignees.filter((a) => a !== assignee));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -75,7 +76,7 @@ const AssigneeSelector: React.FC<AssigneeSelectorProps> = ({ assignees = [], onC
       {/* Display assignees */}
       <div className="flex -space-x-2">
         <AnimatePresence>
-          {assignees.map((assignee) => (
+          {safeAssignees.map((assignee) => (
             <motion.div
               key={assignee}
               initial={{ scale: 0, opacity: 0 }}

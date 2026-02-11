@@ -245,13 +245,13 @@ function App() {
                         createdAt: c.created_at,
                         commentsCount: commentCountsMap[c.id] || 0,
                         // New collaboration fields
-                        dueDate: c.due_date,
-                        estimatedHours: c.estimated_hours,
-                        actualHours: c.actual_hours,
-                        priority: c.priority,
-                        assignedTo: c.assigned_to,
-                        createdBy: c.created_by,
-                        tags: c.tags,
+                        dueDate: c.due_date ?? undefined,
+                        estimatedHours: c.estimated_hours ?? undefined,
+                        actualHours: c.actual_hours ?? undefined,
+                        priority: c.priority ?? undefined,
+                        assignedTo: Array.isArray(c.assigned_to) ? c.assigned_to : [],
+                        createdBy: c.created_by ?? undefined,
+                        tags: Array.isArray(c.tags) ? c.tags : [],
                     }))
                     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
             }));
@@ -480,19 +480,39 @@ function App() {
     });
 
     // Map our Card fields to database column names
+    const hasUpdateField = (field: keyof Card) =>
+      Object.prototype.hasOwnProperty.call(updates, field);
+
     const dbUpdates: any = {};
-    if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
-    if (updates.estimatedHours !== undefined) dbUpdates.estimated_hours = updates.estimatedHours;
-    if (updates.actualHours !== undefined) dbUpdates.actual_hours = updates.actualHours;
-    if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
-    if (updates.assignedTo !== undefined) dbUpdates.assigned_to = updates.assignedTo;
-    if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
-    if (updates.createdBy !== undefined) dbUpdates.created_by = updates.createdBy;
+    if (hasUpdateField('dueDate')) dbUpdates.due_date = updates.dueDate ?? null;
+    if (hasUpdateField('estimatedHours')) dbUpdates.estimated_hours = updates.estimatedHours ?? null;
+    if (hasUpdateField('actualHours')) dbUpdates.actual_hours = updates.actualHours ?? null;
+    if (hasUpdateField('priority')) dbUpdates.priority = updates.priority ?? null;
+    if (hasUpdateField('assignedTo')) dbUpdates.assigned_to = updates.assignedTo ?? [];
+    if (hasUpdateField('tags')) dbUpdates.tags = updates.tags ?? [];
+    if (hasUpdateField('createdBy')) dbUpdates.created_by = updates.createdBy ?? null;
+
+    if (Object.keys(dbUpdates).length === 0) {
+      return;
+    }
 
     const { error } = await supabase!.from('cards').update(dbUpdates).eq('id', cardId);
     if (error) {
       console.error("Failed to update card:", error);
-      showToast(formatSupabaseError(error, 'Failed to update card details.'), 'error');
+      const isMissingCardColumnError =
+        (error as any)?.code === '42703' ||
+        (typeof (error as any)?.message === 'string' &&
+          (error as any).message.includes('column') &&
+          (error as any).message.includes('"cards"'));
+
+      if (isMissingCardColumnError) {
+        showToast(
+          'Cards schema is out of date. Run database/cards_due_dates_collaboration.sql in Supabase SQL Editor, then refresh schema.',
+          'error'
+        );
+      } else {
+        showToast(formatSupabaseError(error, 'Failed to update card details.'), 'error');
+      }
       setIdeas(originalIdeas); // Revert on error
       // Also revert selected card context
       const originalIdea = originalIdeas.find(i => i.columns.some(c => c.cards.some(card => card.id === cardId)));

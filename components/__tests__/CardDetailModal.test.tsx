@@ -77,6 +77,28 @@ beforeEach(() => {
 });
 
 describe('CardDetailModal', () => {
+  it('renders when card metadata arrays are null', () => {
+    const cardWithNullArrays = {
+      ...baseCard,
+      assignedTo: null,
+      tags: null,
+    } as unknown as Card;
+
+    render(
+      <CardDetailModal
+        card={cardWithNullArrays}
+        columnTitle="Backlog"
+        columnId="backlog"
+        ideaId="idea-1"
+        ideaTitle="Sample Idea"
+        onCommentAdded={onCommentAddedMock}
+        onClose={onCloseMock}
+      />
+    );
+
+    expect(screen.getByText(baseCard.text)).toBeInTheDocument();
+  });
+
   it('renders card details and existing comments', () => {
     renderModal();
 
