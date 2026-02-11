@@ -220,6 +220,14 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
 
   const columnBadge = useMemo(() => columnTitle || 'Untitled', [columnTitle]);
   const isActionBusy = isSubmitting || isReportSubmitting;
+  const actionOptions = [
+    { key: 'comment' as const, label: 'Comment', icon: 'chat', description: 'Discuss and update the card' },
+    { key: 'mi' as const, label: 'Report Bug', icon: 'alert', description: 'Raise an MI report from this card' },
+    { key: 'upgrade' as const, label: 'Start Upgrade', icon: 'sparkles', description: 'Plan and log an upgrade task' },
+  ];
+  const activityCountLabel = `${comments.length} ${comments.length === 1 ? 'update' : 'updates'}`;
+  const selectedActionDescription =
+    actionOptions.find((option) => option.key === composerMode)?.description ?? '';
 
   return (
     <motion.div
@@ -242,55 +250,81 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
         exit={{ scale: 0.9, y: 20 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       >
-        <header className="p-4 md:p-6 border-b border-slate-800 flex items-start gap-2 md:gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
-              <span className="text-xs uppercase tracking-wide text-slate-400 bg-slate-800/80 border border-slate-700 px-2 py-0.5 rounded-full">
-                {columnBadge}
-              </span>
-              <span className="text-xs text-slate-500 truncate">{formatTimestamp(card.createdAt)}</span>
+        <header className="p-4 md:p-6 border-b border-slate-800 bg-slate-900/85">
+          <div className="flex items-start gap-2 md:gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 md:gap-3 mb-2">
+                <span className="text-[11px] uppercase tracking-wide text-slate-300 bg-slate-800/80 border border-slate-700 px-2 py-0.5 rounded-full">
+                  {ideaTitle}
+                </span>
+                <span className="text-[11px] uppercase tracking-wide text-slate-400 bg-slate-800/70 border border-slate-700/80 px-2 py-0.5 rounded-full">
+                  {columnBadge}
+                </span>
+              </div>
+              <h2 id="card-detail-title" className="text-lg md:text-2xl font-semibold text-slate-100 whitespace-pre-wrap leading-snug">
+                {card.text}
+              </h2>
+              <p className="mt-2 text-xs text-slate-500">Created {formatTimestamp(card.createdAt)}</p>
             </div>
-            <h2 id="card-detail-title" className="text-lg md:text-2xl font-semibold text-slate-100 whitespace-pre-wrap">
-              {card.text}
-            </h2>
+            <motion.button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 md:p-2 rounded-full text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition flex-shrink-0"
+              aria-label="Close card detail"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <Icon name="close" className="w-5 h-5" />
+            </motion.button>
           </div>
-          <motion.button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 md:p-2 rounded-full text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition flex-shrink-0"
-            aria-label="Close card detail"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <Icon name="close" className="w-5 h-5" />
-          </motion.button>
         </header>
 
         {/* Card Metadata Section */}
-        <div className="px-4 md:px-6 py-3 md:py-4 border-b border-slate-800 bg-slate-900/40 space-y-3">
-          {/* Row 1: Due Date, Priority, Assignees */}
-          <div className="flex flex-wrap items-center gap-3">
-            <DueDatePicker dueDate={card.dueDate} onChange={handleDueDateChange} />
-            <PrioritySelector priority={card.priority} onChange={handlePriorityChange} />
-            <div className="flex items-center gap-2">
-              <Icon name="users" className="w-4 h-4 text-slate-500" />
-              <AssigneeSelector assignees={card.assignedTo} onChange={handleAssigneesChange} />
+        <div className="px-4 md:px-6 py-4 border-b border-slate-800 bg-slate-900/45">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl border border-slate-800/90 bg-slate-950/35 p-3 md:p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Icon name="flag" className="w-4 h-4 text-slate-400" />
+                <h3 className="text-sm font-semibold text-slate-200">Planning</h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <DueDatePicker dueDate={card.dueDate} onChange={handleDueDateChange} />
+                <PrioritySelector priority={card.priority} onChange={handlePriorityChange} />
+              </div>
+              <div className="mt-3 pt-3 border-t border-slate-800/80">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-2">Assignees</p>
+                <AssigneeSelector assignees={card.assignedTo} onChange={handleAssigneesChange} />
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-800/90 bg-slate-950/35 p-3 md:p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Icon name="clock" className="w-4 h-4 text-slate-400" />
+                <h3 className="text-sm font-semibold text-slate-200">Effort</h3>
+              </div>
+              <p className="text-xs text-slate-500 mb-2.5">Track estimate vs actual time for better planning.</p>
+              <TimeTracker
+                estimatedHours={card.estimatedHours}
+                actualHours={card.actualHours}
+                onEstimateChange={handleEstimateChange}
+                onActualChange={handleActualChange}
+                className="flex-wrap"
+              />
             </div>
           </div>
-
-          {/* Row 2: Time Tracker */}
-          <TimeTracker
-            estimatedHours={card.estimatedHours}
-            actualHours={card.actualHours}
-            onEstimateChange={handleEstimateChange}
-            onActualChange={handleActualChange}
-          />
-
-          {/* Row 3: Tags */}
-          <TagSelector tags={card.tags} onChange={handleTagsChange} />
+          <div className="mt-3 rounded-xl border border-slate-800/90 bg-slate-950/35 p-3 md:p-4">
+            <div className="flex items-center gap-2 mb-2.5">
+              <Icon name="tag" className="w-4 h-4 text-slate-400" />
+              <h3 className="text-sm font-semibold text-slate-200">Tags</h3>
+            </div>
+            <TagSelector tags={card.tags} onChange={handleTagsChange} />
+          </div>
         </div>
 
         <section className="flex-1 overflow-hidden flex flex-col">
+          <div className="px-4 md:px-6 py-2.5 border-b border-slate-800 bg-slate-900/70 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-slate-300">Activity</h3>
+            <span className="text-xs text-slate-500">{activityCountLabel}</span>
+          </div>
           {error && (
             <div className="px-4 md:px-6 py-2 bg-red-500/10 text-red-300 text-sm border-b border-red-500/30">
               {error}
@@ -344,32 +378,31 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
             )}
           </div>
           <div className="p-4 md:p-6 border-t border-slate-800 bg-slate-900/60 flex flex-col gap-3 md:gap-4">
-            <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs md:text-sm text-slate-400">
-              <span className="hidden md:inline">Action:</span>
-              {(
-                [
-                  { key: 'comment', label: 'Comment', icon: 'chat' },
-                  { key: 'mi', label: 'Report Bug', icon: 'alert' },
-                  { key: 'upgrade', label: 'Start Upgrade', icon: 'sparkles' },
-                ] as const
-              ).map((action) => (
-                <motion.button
-                  key={action.key}
-                  type="button"
-                  onClick={() => handleComposerModeChange(action.key)}
-                  aria-pressed={composerMode === action.key}
-                  className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 rounded-full border transition text-xs md:text-sm ${
-                    composerMode === action.key
-                      ? 'bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 border-brand-purple-500 text-white shadow-card'
-                      : 'bg-surface-elevated border-border text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Icon name={action.icon} className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{action.label}</span>
-                </motion.button>
-              ))}
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+                <h4 className="text-sm font-semibold text-slate-200">Next Action</h4>
+                <p className="text-xs text-slate-500">{selectedActionDescription}</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {actionOptions.map((action) => (
+                  <motion.button
+                    key={action.key}
+                    type="button"
+                    onClick={() => handleComposerModeChange(action.key)}
+                    aria-pressed={composerMode === action.key}
+                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl border transition text-xs sm:text-sm ${
+                      composerMode === action.key
+                        ? 'bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 border-brand-purple-500 text-white shadow-card'
+                        : 'bg-surface-elevated border-border text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Icon name={action.icon} className="w-3.5 h-3.5" />
+                    <span>{action.label}</span>
+                  </motion.button>
+                ))}
+              </div>
             </div>
 
             <AnimatePresence mode="wait">
@@ -397,18 +430,18 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
               )}
             </AnimatePresence>
 
-            {composerMode === 'comment' && (
-              <motion.form
-                onSubmit={handleSubmit}
-                className="flex flex-col gap-3"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <label htmlFor="card-comment" className="text-sm text-text-secondary font-medium">
-                  Add a comment
-                </label>
-                <div className="flex gap-3">
+            <div className="rounded-xl border border-slate-800/80 bg-slate-950/35 p-3 md:p-4">
+              {composerMode === 'comment' && (
+                <motion.form
+                  onSubmit={handleSubmit}
+                  className="flex flex-col gap-3"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <label htmlFor="card-comment" className="text-sm text-text-secondary font-medium">
+                    Add a comment
+                  </label>
                   <textarea
                     id="card-comment"
                     ref={inputRef}
@@ -420,34 +453,37 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                         handleSubmit();
                       }
                     }}
-                    rows={2}
+                    rows={3}
                     placeholder="Share your thoughts..."
                     className="input-field resize-none"
                     disabled={isActionBusy}
                   />
-                  <motion.button
-                    type="submit"
-                    disabled={!draft.trim() || isActionBusy}
-                    className="self-end h-12 w-12 rounded-full bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 hover:shadow-glow-purple disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-white transition-all"
-                    aria-label="Send comment"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Icon name="send" className="w-5 h-5" />
-                  </motion.button>
-                </div>
-                <p className="text-xs text-text-muted">Press Enter to send, Shift+Enter for a new line.</p>
-              </motion.form>
-            )}
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-text-muted">Press Enter to send, Shift+Enter for a new line.</p>
+                    <motion.button
+                      type="submit"
+                      disabled={!draft.trim() || isActionBusy}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 hover:shadow-glow-purple disabled:opacity-50 disabled:cursor-not-allowed text-white transition-all"
+                      aria-label="Send comment"
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      <Icon name="send" className="w-4 h-4" />
+                      <span>Send</span>
+                    </motion.button>
+                  </div>
+                </motion.form>
+              )}
 
-            {composerMode === 'mi' && (
-              <motion.form
-                onSubmit={handleCreateMIReport}
-                className="space-y-4"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-              >
+              {composerMode === 'mi' && (
+                <motion.form
+                  onSubmit={handleCreateMIReport}
+                  className="space-y-4"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <p className="text-xs text-slate-500">Capture reproducible bug details and log a formal MI record.</p>
                 <div className="grid gap-2">
                   <label className="text-sm text-text-secondary font-medium">Bug summary</label>
                   <input
@@ -504,17 +540,18 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                     {isReportSubmitting ? 'Creating...' : 'Create MI Report'}
                   </motion.button>
                 </div>
-              </motion.form>
-            )}
+                </motion.form>
+              )}
 
-            {composerMode === 'upgrade' && (
-              <motion.form
-                onSubmit={handleCreateUpgradeReport}
-                className="space-y-4"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-              >
+              {composerMode === 'upgrade' && (
+                <motion.form
+                  onSubmit={handleCreateUpgradeReport}
+                  className="space-y-4"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <p className="text-xs text-slate-500">Document the implementation plan before creating an upgrade report.</p>
                 <div className="grid gap-2">
                   <label className="text-sm text-text-secondary font-medium">Upgrade idea</label>
                   <input
@@ -614,8 +651,9 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                     {isReportSubmitting ? 'Creating...' : 'Create Upgrade Report'}
                   </motion.button>
                 </div>
-              </motion.form>
-            )}
+                </motion.form>
+              )}
+            </div>
           </div>
         </section>
       </motion.div>
