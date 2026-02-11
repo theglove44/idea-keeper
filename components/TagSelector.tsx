@@ -11,9 +11,15 @@ type TagSelectorProps = {
 
 const defaultSuggestions = ['frontend', 'backend', 'bug', 'feature', 'design', 'urgent', 'research'];
 
+type TagColor = {
+  bg: string;
+  border: string;
+  text: string;
+};
+
 // Get consistent color for each tag
-const getTagColor = (tag: string): string => {
-  const colors = [
+const getTagColor = (tag: string): TagColor => {
+  const colors: TagColor[] = [
     { bg: 'bg-red-500/20', border: 'border-red-500/50', text: 'text-red-400' },
     { bg: 'bg-orange-500/20', border: 'border-orange-500/50', text: 'text-orange-400' },
     { bg: 'bg-amber-500/20', border: 'border-amber-500/50', text: 'text-amber-400' },
