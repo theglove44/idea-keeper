@@ -500,11 +500,11 @@ function App() {
 
   return (
     <ToastProvider>
-    <div className="h-screen w-screen bg-slate-900 text-white flex overflow-hidden">
+    <div className="app-shell">
       {/* Mobile hamburger button */}
       <button
         onClick={() => setIsMobileSidebarOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-40 p-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 hover:bg-slate-700 transition-colors"
+        className="md:hidden fixed top-4 left-4 z-40 p-2 bg-surface-elevated/95 border border-border rounded-lg text-text-primary hover:bg-surface-overlay transition-colors"
         aria-label="Open menu"
       >
         <Icon name="menu" className="w-6 h-6" />
