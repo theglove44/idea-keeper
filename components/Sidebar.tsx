@@ -10,11 +10,12 @@ type SidebarProps = {
   onSelectIdea: (id: string) => void;
   onNewIdea: () => void;
   onDeleteIdea: (id: string) => void;
+  onOpenClaudeChat?: () => void;
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, onNewIdea, onDeleteIdea, isMobileOpen = false, onMobileClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, onNewIdea, onDeleteIdea, onOpenClaudeChat, isMobileOpen = false, onMobileClose }) => {
   const [filterText, setFilterText] = React.useState('');
 
   // Filter ideas based on search text
@@ -151,7 +152,18 @@ const Sidebar: React.FC<SidebarProps> = ({ ideas, selectedIdeaId, onSelectIdea, 
           )}
         </ul>
       </div>
-      <div className="p-3 border-t border-border flex-shrink-0">
+      <div className="p-3 border-t border-border flex-shrink-0 space-y-2">
+         {onOpenClaudeChat && (
+           <motion.button
+             onClick={onOpenClaudeChat}
+             className="w-full flex items-center justify-center gap-2 p-3 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 border border-amber-500/30 hover:border-amber-500/50 transition-all duration-200 text-sm font-medium"
+             whileHover={{ scale: 1.02 }}
+             whileTap={{ scale: 0.98 }}
+           >
+             <Icon name="sparkles" className="w-4 h-4" />
+             Chat with Claude
+           </motion.button>
+         )}
          <motion.a
           href="https://github.com/theglove44/idea-keeper/issues/new"
           target="_blank"

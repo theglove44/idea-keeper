@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { createClaudePlugin } from './server/claudePlugin';
 
 type IncomingRequest = import('http').IncomingMessage;
 type ServerResponse = import('http').ServerResponse;
@@ -136,7 +137,7 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
       },
-      plugins: [react(), createReportPlugin()],
+      plugins: [react(), createReportPlugin(), createClaudePlugin()],
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

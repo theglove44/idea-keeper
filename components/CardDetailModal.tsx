@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, SeverityLevel, PriorityLevel } from '../types';
+import { Card, SeverityLevel, PriorityLevel, Idea } from '../types';
 import Icon from './Icon';
 import { LoadingSpinner } from './LoadingSkeleton';
 import { useCardComments } from '../hooks/useCardComments';
@@ -11,15 +11,23 @@ import PrioritySelector from './PrioritySelector';
 import AssigneeSelector from './AssigneeSelector';
 import TimeTracker from './TimeTracker';
 import TagSelector from './TagSelector';
+import { useClaude } from '../hooks/useClaude';
+import { containsClaudeMention, extractClaudePrompt } from '../utils/mentionDetection';
+import { buildCardContext } from '../utils/claudeContextBuilder';
+import { ClaudeAction } from '../services/claudeService';
+import ClaudeAvatar from './ClaudeAvatar';
 
 type CardDetailModalProps = {
   card: Card;
+  idea: Idea;
   columnTitle: string;
   columnId: string;
   ideaId: string;
   ideaTitle: string;
   onCommentAdded?: (cardId: string) => void;
   onCardUpdate?: (cardId: string, updates: Partial<Card>) => void;
+  onAddCard?: (ideaId: string, columnId: string, text: string) => void;
+  onMoveCard?: (cardId: string, sourceColumnId: string, destColumnId: string, ideaId: string) => void;
   onClose: () => void;
 };
 
@@ -31,12 +39,13 @@ const formatTimestamp = (iso: string) => {
   }
 };
 
-type ComposerMode = 'comment' | 'mi' | 'upgrade';
+type ComposerMode = 'comment' | 'mi' | 'upgrade' | 'claude';
 
 const defaultChecklist = ['Define scope', 'Review plan', 'QA sign-off'];
 
-const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, columnId, ideaId, ideaTitle, onCommentAdded, onCardUpdate, onClose }) => {
+const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, idea, columnTitle, columnId, ideaId, ideaTitle, onCommentAdded, onCardUpdate, onAddCard, onMoveCard, onClose }) => {
   const { comments, isLoading, isSubmitting, error, submitComment } = useCardComments(card?.id ?? null);
+  const claude = useClaude();
   const normalizedAssignees = Array.isArray(card.assignedTo) ? card.assignedTo : [];
   const normalizedTags = Array.isArray(card.tags) ? card.tags : [];
   const [draft, setDraft] = useState('');
@@ -117,6 +126,12 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
     return () => cancelAnimationFrame(rafId);
   }, [composerMode]);
 
+  useEffect(() => {
+    if (composerMode === 'claude' && !draft.startsWith('@claude ')) {
+      setDraft('@claude ');
+    }
+  }, [composerMode, draft]);
+
   const handleBackdropClick = () => onClose();
   const handleContainerClick = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -125,9 +140,21 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
   const handleSubmit = async (event?: React.FormEvent) => {
     event?.preventDefault();
     if (!draft.trim()) return;
-    await submitComment(draft);
+    const commentText = draft;
+    await submitComment(commentText);
     onCommentAdded?.(card.id);
     setDraft('');
+
+    // Check for @claude mention and trigger Claude
+    if (containsClaudeMention(commentText)) {
+      const prompt = extractClaudePrompt(commentText);
+      const context = buildCardContext(idea, card, columnTitle, comments);
+      const response = await claude.sendMessage(prompt, context);
+      if (response && response.message) {
+        await submitComment(response.message, 'Claude');
+        onCommentAdded?.(card.id);
+      }
+    }
   };
 
   const handleComposerModeChange = (mode: ComposerMode) => {
@@ -220,12 +247,34 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
     setUpgradeChecklist((prev) => prev.filter((_, idx) => idx !== index));
   };
 
+  const handleApproveAction = async (action: ClaudeAction, index: number) => {
+    if (action.type === 'create_card' && onAddCard) {
+      onAddCard(ideaId, action.params.columnId || 'todo', action.params.text);
+      await submitComment(`Created card: "${action.params.text}" in ${action.params.columnId || 'todo'}`, 'Claude');
+      onCommentAdded?.(card.id);
+    } else if (action.type === 'move_card' && onMoveCard) {
+      onMoveCard(card.id, columnId, action.params.columnId, ideaId);
+      await submitComment(`Moved card to ${action.params.columnId}`, 'Claude');
+      onCommentAdded?.(card.id);
+    }
+    claude.removeAction(index);
+  };
+
+  const handleDismissAction = (index: number) => {
+    claude.removeAction(index);
+  };
+
+  const handleDismissAllActions = () => {
+    claude.clearPendingActions();
+  };
+
   const columnBadge = useMemo(() => columnTitle || 'Untitled', [columnTitle]);
-  const isActionBusy = isSubmitting || isReportSubmitting;
+  const isActionBusy = isSubmitting || isReportSubmitting || claude.isThinking;
   const actionOptions = [
     { key: 'comment' as const, label: 'Comment', icon: 'chat', description: 'Discuss and update the card' },
     { key: 'mi' as const, label: 'Report Bug', icon: 'alert', description: 'Raise an MI report from this card' },
     { key: 'upgrade' as const, label: 'Start Upgrade', icon: 'sparkles', description: 'Plan and log an upgrade task' },
+    { key: 'claude' as const, label: 'Ask Claude', icon: 'sparkles', description: 'Chat with Claude about this card' },
   ];
   const activityCountLabel = `${comments.length} ${comments.length === 1 ? 'update' : 'updates'}`;
   const selectedActionDescription =
@@ -332,6 +381,11 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
               {error}
             </div>
           )}
+          {claude.error && (
+            <div className="px-4 md:px-6 py-2 bg-amber-500/10 text-amber-300 text-sm border-b border-amber-500/30">
+              Claude: {claude.error}
+            </div>
+          )}
           <div
             ref={scrollContainerRef}
             className="px-4 md:px-6 py-3 md:py-5 space-y-3 md:space-y-4 bg-slate-900/40"
@@ -352,25 +406,33 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
             ) : (
               comments.map((comment, index) => {
                 const isOwn = comment.author === 'You' || !comment.author;
+                const isClaude = comment.author === 'Claude';
                 return (
                   <motion.div
                     key={comment.id}
-                    className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${isClaude ? 'justify-start' : isOwn ? 'justify-end' : 'justify-start'}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
+                    {isClaude && (
+                      <div className="mr-2 mt-1">
+                        <ClaudeAvatar size="sm" />
+                      </div>
+                    )}
                     <div className="max-w-[80%]">
                       <div
                         className={`rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-card ${
-                          isOwn
+                          isClaude
+                            ? 'bg-amber-500/10 border border-amber-500/30 text-slate-200'
+                            : isOwn
                             ? 'bg-gradient-to-r from-brand-purple-600 to-brand-cyan-600 text-white'
                             : 'bg-surface-elevated border border-border text-text-primary'
                         }`}
                       >
                         <p className="whitespace-pre-wrap">{comment.body}</p>
                       </div>
-                      <div className={`text-[11px] mt-1.5 px-1 ${isOwn ? 'text-brand-purple-300 text-right' : 'text-text-muted'}`}>
+                      <div className={`text-[11px] mt-1.5 px-1 ${isClaude ? 'text-amber-400' : isOwn ? 'text-brand-purple-300 text-right' : 'text-text-muted'}`}>
                         {comment.author || 'You'} · {formatTimestamp(comment.createdAt)}
                       </div>
                     </div>
@@ -379,6 +441,69 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
               })
             )}
           </div>
+          {claude.isThinking && (
+            <div className="px-4 md:px-6 py-3 flex items-center gap-3 bg-amber-500/5 border-t border-amber-500/20">
+              <ClaudeAvatar size="sm" />
+              <span className="text-sm text-amber-400 animate-pulse">Claude is thinking...</span>
+            </div>
+          )}
+
+          {/* Claude action proposals */}
+          {claude.pendingActions.length > 0 && (
+            <div className="px-4 md:px-6 py-3 space-y-2 bg-amber-500/5 border-t border-amber-500/20">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-amber-400 font-medium">Claude suggests ({claude.pendingActions.length} remaining):</p>
+                {claude.pendingActions.length > 1 && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        for (const action of [...claude.pendingActions]) {
+                          if (action.type === 'create_card' && onAddCard) {
+                            onAddCard(ideaId, action.params.columnId || 'todo', action.params.text);
+                          }
+                        }
+                        await submitComment(`Approved all ${claude.pendingActions.length} suggested actions`, 'Claude');
+                        onCommentAdded?.(card.id);
+                        claude.clearPendingActions();
+                      }}
+                      className="px-2 py-1 text-xs rounded bg-amber-600 hover:bg-amber-500 text-white transition"
+                    >
+                      Approve All
+                    </button>
+                    <button
+                      onClick={handleDismissAllActions}
+                      className="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600 text-slate-300 transition"
+                    >
+                      Dismiss All
+                    </button>
+                  </div>
+                )}
+              </div>
+              {claude.pendingActions.map((action, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 bg-slate-900/60 rounded-lg px-3 py-2 border border-slate-800">
+                  <span className="text-sm text-slate-300">
+                    {action.type === 'create_card' && `Create card: "${action.params.text}" in ${action.params.columnId || 'todo'}`}
+                    {action.type === 'move_card' && `Move card to ${action.params.columnId}`}
+                    {action.type === 'modify_card' && `Update card: ${action.params.text || 'changes'}`}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleApproveAction(action, i)}
+                      className="px-2 py-1 text-xs rounded bg-amber-600 hover:bg-amber-500 text-white transition"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleDismissAction(i)}
+                      className="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600 text-slate-300 transition"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="p-4 md:p-6 border-t border-slate-800 bg-slate-900/60 flex flex-col gap-3 md:gap-4">
             <div className="space-y-2">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
@@ -653,6 +778,54 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, columnTitle, co
                     {isReportSubmitting ? 'Creating...' : 'Create Upgrade Report'}
                   </motion.button>
                 </div>
+                </motion.form>
+              )}
+
+              {composerMode === 'claude' && (
+                <motion.form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!draft.trim()) return;
+                    handleSubmit();
+                  }}
+                  className="flex flex-col gap-3"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <label htmlFor="claude-prompt" className="text-sm text-text-secondary font-medium">
+                    Ask Claude
+                  </label>
+                  <textarea
+                    id="claude-prompt"
+                    ref={inputRef}
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value.startsWith('@claude ') ? e.target.value : `@claude ${e.target.value}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit();
+                      }
+                    }}
+                    rows={3}
+                    placeholder="Ask Claude anything about this card..."
+                    className="input-field resize-none"
+                    disabled={isActionBusy || claude.isThinking}
+                  />
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-text-muted">Claude has context about this card and your board.</p>
+                    <motion.button
+                      type="submit"
+                      disabled={!draft.trim() || isActionBusy || claude.isThinking}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 hover:shadow-glow-purple disabled:opacity-50 disabled:cursor-not-allowed text-white transition-all"
+                      aria-label="Send to Claude"
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      <Icon name="sparkles" className="w-4 h-4" />
+                      <span>{claude.isThinking ? 'Thinking...' : 'Ask Claude'}</span>
+                    </motion.button>
+                  </div>
                 </motion.form>
               )}
             </div>

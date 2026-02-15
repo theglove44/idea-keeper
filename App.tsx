@@ -13,6 +13,7 @@ import { useFocusTrap } from './hooks/useFocusTrap';
 const CardDetailModal = lazy(() => import('./components/CardDetailModal'));
 const SearchModal = lazy(() => import('./components/SearchModal'));
 const KeyboardShortcutsHelp = lazy(() => import('./components/KeyboardShortcutsHelp'));
+const ClaudeChatPanel = lazy(() => import('./components/ClaudeChatPanel'));
 
 const IdeaForm: React.FC<{ 
     onSave: (title: string, summary: string) => Promise<{ success: boolean; error?: string }>; 
@@ -128,6 +129,20 @@ function App() {
   } | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isShortcutsHelpOpen, setIsShortcutsHelpOpen] = useState(false);
+  const [isClaudePanelOpen, setIsClaudePanelOpen] = useState(false);
+  const [isClaudeAvailable, setIsClaudeAvailable] = useState<boolean | null>(null);
+
+  // Claude health check on mount
+  useEffect(() => {
+    import('./services/claudeService').then(({ checkClaudeHealth }) => {
+      checkClaudeHealth().then(({ available }) => {
+        setIsClaudeAvailable(available);
+        if (!available) {
+          console.warn('Claude CLI not available. Install and run `claude login` to enable AI features.');
+        }
+      });
+    });
+  }, []);
 
   // Onboarding
   const { showTour, completeTour } = useOnboarding();
@@ -611,6 +626,7 @@ function App() {
         }}
         onNewIdea={() => setIsAddingNewIdea(true)}
         onDeleteIdea={handleDeleteIdea}
+        onOpenClaudeChat={isClaudeAvailable !== false ? () => setIsClaudePanelOpen(true) : undefined}
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setIsMobileSidebarOpen(false)}
       />
@@ -649,12 +665,15 @@ function App() {
         {selectedCardContext && (
           <CardDetailModal
             card={selectedCardContext.card}
+            idea={selectedIdea!}
             columnTitle={selectedCardContext.columnTitle}
             ideaId={selectedCardContext.ideaId}
             ideaTitle={selectedCardContext.ideaTitle}
             columnId={selectedCardContext.columnId}
             onCommentAdded={handleIncrementCardCommentCount}
             onCardUpdate={handleUpdateCard}
+            onAddCard={handleAddCardToIdea}
+            onMoveCard={handleMoveCard}
             onClose={handleCloseCardDetail}
           />
         )}
@@ -686,6 +705,21 @@ function App() {
           isOpen={isShortcutsHelpOpen}
           onClose={() => setIsShortcutsHelpOpen(false)}
         />
+      </Suspense>
+
+      {/* Claude Chat Panel */}
+      <Suspense fallback={null}>
+        <AnimatePresence>
+          {isClaudePanelOpen && (
+            <ClaudeChatPanel
+              ideas={ideas}
+              selectedIdea={selectedIdea}
+              onAddCard={handleAddCardToIdea}
+              onMoveCard={handleMoveCard}
+              onClose={() => setIsClaudePanelOpen(false)}
+            />
+          )}
+        </AnimatePresence>
       </Suspense>
 
       {/* Onboarding Tour */}
