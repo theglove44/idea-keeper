@@ -19,7 +19,12 @@ export interface ClaudeResponse {
   error?: string;
 }
 
-const parseActionsFromMessage = (message: string): { cleanMessage: string; actions?: ClaudeAction[] } => {
+/**
+ * Detect if running in Tauri environment
+ */
+const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
+
+export const parseActionsFromMessage = (message: string): { cleanMessage: string; actions?: ClaudeAction[] } => {
   // Match ```actions\n[...]\n``` blocks in the message
   const actionsRegex = /```actions\n([\s\S]*?)\n```/g;
   const matches = Array.from(message.matchAll(actionsRegex));
@@ -54,7 +59,11 @@ const parseActionsFromMessage = (message: string): { cleanMessage: string; actio
   return { cleanMessage, actions: actions.length > 0 ? actions : undefined };
 };
 
-export const sendToClaude = async (prompt: string, context: ClaudeContext): Promise<ClaudeResponse> => {
+/**
+ * Fetch-based implementation for browser/Vite environment.
+ * Uses Vite middleware to communicate with Claude CLI.
+ */
+const fetchSendToClaude = async (prompt: string, context: ClaudeContext): Promise<ClaudeResponse> => {
   try {
     const response = await fetch(`/api/claude/chat`, {
       method: 'POST',
@@ -92,7 +101,22 @@ export const sendToClaude = async (prompt: string, context: ClaudeContext): Prom
   }
 };
 
-export const checkClaudeHealth = async (): Promise<{ available: boolean; version?: string }> => {
+/**
+ * Environment-aware sendToClaude router.
+ * Automatically uses Tauri shell plugin in desktop app, or Vite middleware in browser.
+ */
+export const sendToClaude = async (prompt: string, context: ClaudeContext): Promise<ClaudeResponse> => {
+  if (isTauri) {
+    const { tauriSendToClaude } = await import('./tauriClaudeService');
+    return tauriSendToClaude(prompt, context);
+  }
+  return fetchSendToClaude(prompt, context);
+};
+
+/**
+ * Fetch-based health check for browser/Vite environment.
+ */
+const fetchCheckClaudeHealth = async (): Promise<{ available: boolean; version?: string }> => {
   try {
     const response = await fetch(`/api/claude/health`);
 
@@ -109,4 +133,16 @@ export const checkClaudeHealth = async (): Promise<{ available: boolean; version
     console.warn('Claude health check failed:', error);
     return { available: false };
   }
+};
+
+/**
+ * Environment-aware checkClaudeHealth router.
+ * Automatically uses Tauri shell plugin in desktop app, or Vite middleware in browser.
+ */
+export const checkClaudeHealth = async (): Promise<{ available: boolean; version?: string }> => {
+  if (isTauri) {
+    const { tauriCheckClaudeHealth } = await import('./tauriClaudeService');
+    return tauriCheckClaudeHealth();
+  }
+  return fetchCheckClaudeHealth();
 };

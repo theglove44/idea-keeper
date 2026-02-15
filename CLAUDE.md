@@ -1,23 +1,39 @@
-# Idea Keeper — Claude Integration Project
+# Idea Keeper — Claude Integration & Desktop App
 
 ## Project Overview
-Integrating Claude AI directly into the Idea Keeper app via Claude Code CLI subprocess. Users @mention Claude in card comments and interact via a global chat panel.
+Idea Keeper with integrated Claude AI assistant. Users @mention Claude in card comments and interact via a global chat panel. Runs as a native macOS desktop app via Tauri, or in the browser via Vite dev server. Data persists in Supabase regardless of runtime.
 
 ## Architecture Decisions
-- **Auth:** Claude Code CLI subprocess (`claude -p --output-format json`) using Max subscription OAuth — no API key
-- **Backend:** Vite plugin middleware (matches existing `createReportPlugin` pattern in `vite.config.ts`)
+- **Auth:** Claude Code CLI subprocess (`claude -p --output-format json`) using Max subscription OAuth — no API key needed
+- **Desktop app:** Tauri v2 (12MB .app) — Claude CLI spawned via Tauri Shell Plugin
+- **Browser dev:** Vite plugin middleware (matches existing `createReportPlugin` pattern)
+- **Environment routing:** `services/claudeService.ts` auto-detects Tauri vs browser and routes to the correct backend
 - **Frontend:** React hooks + services pattern (matches existing `useCardComments`, `commentService`)
-- **Env var:** `ANTHROPIC_API_KEY` is stripped from subprocess env to force OAuth auth
+- **Env vars:** `ANTHROPIC_API_KEY` and `CLAUDECODE` stripped from subprocess env to force OAuth auth
+
+## Running the App
+- **Desktop app:** `npm run tauri:dev` (dev with hot reload) or open `src-tauri/target/release/bundle/macos/Idea Keeper.app`
+- **Browser:** `npm run dev` → `http://localhost:3000`
+- **Build desktop:** `npm run tauri:build` → produces `.app` and `.dmg` in `src-tauri/target/release/bundle/`
 
 ## Key File Paths
-- `server/claudeService.ts` — CLI subprocess wrapper
-- `server/claudePlugin.ts` — Vite middleware routes
-- `services/claudeService.ts` — Frontend API client
+
+### Claude Integration
+- `server/claudeService.ts` — Node.js CLI subprocess wrapper (Vite middleware)
+- `server/claudePlugin.ts` — Vite middleware routes (`/api/claude/chat`, `/api/claude/health`)
+- `services/claudeService.ts` — Frontend API client with environment routing (Tauri vs browser)
+- `services/tauriClaudeService.ts` — Tauri Shell Plugin implementation (spawns CLI directly)
 - `utils/mentionDetection.ts` — @claude detection
 - `utils/claudeContextBuilder.ts` — Prompt assembly from app state
 - `hooks/useClaude.ts` — React hook for Claude interactions
 - `components/ClaudeAvatar.tsx` — Visual identity for Claude comments
 - `components/ClaudeChatPanel.tsx` — Global chat slide-out panel
+
+### Tauri Desktop
+- `src-tauri/tauri.conf.json` — App config (window size, identifier, shell open)
+- `src-tauri/src/lib.rs` — Rust entry point with plugin registration (shell, fs, log)
+- `src-tauri/capabilities/default.json` — Permissions with scoped shell commands (claude CLI allowed here)
+- `src-tauri/Cargo.toml` — Rust dependencies
 
 ## Conventions
 - Follow existing Vite plugin pattern from `vite.config.ts` (lines 14-55)
@@ -25,6 +41,8 @@ Integrating Claude AI directly into the Idea Keeper app via Claude Code CLI subp
 - Claude comments use `author: 'Claude'` to distinguish from user comments
 - Action proposals from Claude require user confirmation before execution
 - All new types go in `types.ts`
+- Amber/orange theme for all Claude UI elements
+- Environment detection: `const isTauri = typeof window !== 'undefined' && '__TAURI__' in window`
 
 ## Learnings
 
@@ -56,3 +74,15 @@ Integrating Claude AI directly into the Idea Keeper app via Claude Code CLI subp
 - Both `CardDetailModal` and `ClaudeChatPanel` pass the action index to approve/dismiss handlers
 - "Approve All" / "Dismiss All" buttons shown in the header only when there are 2+ pending actions
 - Counter label "(X remaining)" gives users visibility into how many actions are left to review
+
+### Tauri Desktop App
+- **Shell scope goes in capabilities, NOT tauri.conf.json.** In Tauri v2, `plugins.shell` in `tauri.conf.json` only accepts `{ "open": true }`. Putting a `scope` array there causes a runtime crash: `"unknown field 'scope', expected 'open'"`. The scoped command must be defined inline in `src-tauri/capabilities/default.json` using the `allow` array on `shell:allow-execute` and `shell:allow-spawn` permissions (see that file for the exact format)
+- The app will briefly appear in the dock and immediately vanish with no visible error if `tauri.conf.json` has invalid plugin config — always test by running the binary directly from terminal (`Idea Keeper.app/Contents/MacOS/app`) to see the actual panic message
+- Vite middleware does NOT work in production Tauri builds (only during `tauri dev`) — the Shell Plugin is the production path
+- Environment detection via `'__TAURI__' in window` with dynamic `import()` keeps Tauri plugin code out of the browser bundle
+- `Command.create('claude', args, { env: { ANTHROPIC_API_KEY: '', CLAUDECODE: '' } })` strips env vars in Tauri (empty string, not delete)
+- Production `.app` is ~12MB (vs ~150MB for Electron) — uses system WebView
+- `src-tauri/target/` and `src-tauri/gen/` are gitignored (build artifacts)
+- No code signing needed for local use — ad-hoc signature works on Apple Silicon
+- `cargo check` from `src-tauri/` is the fastest way to verify Rust compilation without a full build
+- First `tauri build` takes ~2 min (compiling all Rust deps); subsequent builds are much faster
