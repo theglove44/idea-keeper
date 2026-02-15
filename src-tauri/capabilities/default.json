@@ -12,8 +12,8 @@
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "claude",
-          "cmd": "claude",
+          "name": "claude-local",
+          "cmd": "/Users/christaylor/.local/bin/claude",
           "args": true,
           "sidecar": false
         }
@@ -23,8 +23,8 @@
       "identifier": "shell:allow-spawn",
       "allow": [
         {
-          "name": "claude",
-          "cmd": "claude",
+          "name": "claude-local",
+          "cmd": "/Users/christaylor/.local/bin/claude",
           "args": true,
           "sidecar": false
         }

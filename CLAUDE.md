@@ -42,7 +42,7 @@ Idea Keeper with integrated Claude AI assistant. Users @mention Claude in card c
 - Action proposals from Claude require user confirmation before execution
 - All new types go in `types.ts`
 - Amber/orange theme for all Claude UI elements
-- Environment detection: `const isTauri = typeof window !== 'undefined' && '__TAURI__' in window`
+- Environment detection: `const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window`
 
 ## Learnings
 
@@ -79,7 +79,7 @@ Idea Keeper with integrated Claude AI assistant. Users @mention Claude in card c
 - **Shell scope goes in capabilities, NOT tauri.conf.json.** In Tauri v2, `plugins.shell` in `tauri.conf.json` only accepts `{ "open": true }`. Putting a `scope` array there causes a runtime crash: `"unknown field 'scope', expected 'open'"`. The scoped command must be defined inline in `src-tauri/capabilities/default.json` using the `allow` array on `shell:allow-execute` and `shell:allow-spawn` permissions (see that file for the exact format)
 - The app will briefly appear in the dock and immediately vanish with no visible error if `tauri.conf.json` has invalid plugin config — always test by running the binary directly from terminal (`Idea Keeper.app/Contents/MacOS/app`) to see the actual panic message
 - Vite middleware does NOT work in production Tauri builds (only during `tauri dev`) — the Shell Plugin is the production path
-- Environment detection via `'__TAURI__' in window` with dynamic `import()` keeps Tauri plugin code out of the browser bundle
+- Environment detection via `'__TAURI_INTERNALS__' in window` with dynamic `import()` keeps Tauri plugin code out of the browser bundle
 - `Command.create('claude', args, { env: { ANTHROPIC_API_KEY: '', CLAUDECODE: '' } })` strips env vars in Tauri (empty string, not delete)
 - Production `.app` is ~12MB (vs ~150MB for Electron) — uses system WebView
 - `src-tauri/target/` and `src-tauri/gen/` are gitignored (build artifacts)

@@ -133,7 +133,14 @@ function App() {
   const [isClaudeAvailable, setIsClaudeAvailable] = useState<boolean | null>(null);
 
   // Claude health check on mount
+  // In Tauri desktop app, always show the button — PATH resolution is unreliable
+  // for GUI apps, so we surface errors at interaction time instead
+  const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   useEffect(() => {
+    if (isTauri) {
+      setIsClaudeAvailable(true);
+      return;
+    }
     import('./services/claudeService').then(({ checkClaudeHealth }) => {
       checkClaudeHealth().then(({ available }) => {
         setIsClaudeAvailable(available);
@@ -141,6 +148,8 @@ function App() {
           console.warn('Claude CLI not available. Install and run `claude login` to enable AI features.');
         }
       });
+    }).catch(() => {
+      setIsClaudeAvailable(false);
     });
   }, []);
 

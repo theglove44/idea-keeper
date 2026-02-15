@@ -7,6 +7,21 @@ import { ClaudeContext, ClaudeResponse, ClaudeAction, parseActionsFromMessage } 
 const CLI_TIMEOUT_MS = 120_000;
 
 /**
+ * Scoped command name for the Claude CLI.
+ * macOS GUI apps don't inherit the user's shell PATH, so we use
+ * 'claude-local' which maps to the absolute path in capabilities/default.json.
+ */
+const CLAUDE_SCOPE_NAME = 'claude-local';
+
+/**
+ * Safe working directory for the CLI subprocess.
+ * GUI apps may start with cwd as / or the app bundle, which causes the CLI
+ * to scan the entire filesystem for project context, triggering macOS TCC
+ * permission dialogs (Photos, OneDrive, etc.) and eventually timing out.
+ */
+const SAFE_CWD = '/tmp';
+
+/**
  * Builds a contextual system prompt for Claude based on the current state.
  *
  * This mirrors the implementation from server/claudePlugin.ts to ensure
@@ -89,15 +104,23 @@ export const tauriSendToClaude = async (
     const systemPrompt = buildSystemPrompt(context);
 
     // Build CLI arguments
-    const args = ['-p', prompt, '--output-format', 'json'];
+    // --no-session-persistence: don't save session data to disk
+    // --tools "": disable all tools so CLI won't scan filesystem
+    const claudeArgs = [
+      '-p', prompt,
+      '--output-format', 'json',
+      '--no-session-persistence',
+      '--tools', ''
+    ];
 
     if (systemPrompt && systemPrompt.trim().length > 0) {
-      args.push('--system-prompt', systemPrompt);
+      claudeArgs.push('--system-prompt', systemPrompt);
     }
 
-    // Create command with environment overrides to force OAuth/Max auth
-    // Remove ANTHROPIC_API_KEY and CLAUDECODE to allow spawning from Claude Code
-    const command = Command.create('claude', args, {
+    // Use the absolute path scope entry — GUI apps don't inherit shell PATH
+    // Set cwd to /tmp to prevent CLI from scanning protected directories
+    const command = Command.create(CLAUDE_SCOPE_NAME, claudeArgs, {
+      cwd: SAFE_CWD,
       env: {
         ANTHROPIC_API_KEY: '',
         CLAUDECODE: ''
@@ -203,7 +226,7 @@ export const tauriSendToClaude = async (
  */
 export const tauriCheckClaudeHealth = async (): Promise<{ available: boolean; version?: string }> => {
   try {
-    const command = Command.create('claude', ['--version']);
+    const command = Command.create(CLAUDE_SCOPE_NAME, ['--version'], { cwd: SAFE_CWD });
     const result = await command.execute();
 
     if (result.code === 0) {
