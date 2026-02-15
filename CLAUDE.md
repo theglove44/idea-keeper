@@ -80,7 +80,11 @@ Idea Keeper with integrated Claude AI assistant. Users @mention Claude in card c
 - The app will briefly appear in the dock and immediately vanish with no visible error if `tauri.conf.json` has invalid plugin config — always test by running the binary directly from terminal (`Idea Keeper.app/Contents/MacOS/app`) to see the actual panic message
 - Vite middleware does NOT work in production Tauri builds (only during `tauri dev`) — the Shell Plugin is the production path
 - Environment detection via `'__TAURI_INTERNALS__' in window` with dynamic `import()` keeps Tauri plugin code out of the browser bundle
-- `Command.create('claude', args, { env: { ANTHROPIC_API_KEY: '', CLAUDECODE: '' } })` strips env vars in Tauri (empty string, not delete)
+- **Tauri v2 uses `__TAURI_INTERNALS__`, NOT `__TAURI__`** for environment detection. The `__TAURI__` global only exists with `app.withGlobalTauri: true` (legacy opt-in). Getting this wrong means the app silently falls back to the fetch/Vite path which doesn't exist in production
+- **GUI apps don't inherit the user's shell PATH** — use absolute path scope entries (e.g. `claude-local` → `/Users/christaylor/.local/bin/claude`) instead of bare command names
+- **Must set `cwd` to a safe directory** (e.g. `/tmp`) when spawning CLI. Without it, the GUI app's cwd defaults to `/` or the app bundle, causing Claude CLI to scan the entire filesystem for project context — triggering macOS TCC permission dialogs (Photos, OneDrive, etc.) and timing out
+- **Use `--no-session-persistence` and `--tools ""`** when spawning Claude CLI from the app to prevent filesystem writes and tool-based file scanning
+- **Action proposal system prompt must be explicit.** Saying Claude "can" propose actions is too weak — Claude responds conversationally as if it already did the work. The prompt must state Claude "cannot directly modify the board" and "MUST include action blocks". System prompt is defined in both `services/tauriClaudeService.ts` (Tauri) and `server/claudePlugin.ts` (Vite) — keep them in sync
 - Production `.app` is ~12MB (vs ~150MB for Electron) — uses system WebView
 - `src-tauri/target/` and `src-tauri/gen/` are gitignored (build artifacts)
 - No code signing needed for local use — ad-hoc signature works on Apple Silicon

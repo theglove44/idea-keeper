@@ -144,11 +144,19 @@ const buildSystemPrompt = (context: ClaudeContext): string => {
   }
 
   parts.push(`
-You can propose actions by including a JSON block at the end of your response:
+IMPORTANT: You cannot directly modify the board. To create, move, or modify cards, you MUST include a JSON action block in your response. The user will see these as proposals they can approve or dismiss. Without action blocks, nothing will happen on the board.
+
+To propose actions, include this exact format at the end of your response:
 \`\`\`actions
-[{"type": "create_card", "params": {"text": "...", "columnId": "todo"}}, ...]
+[{"type": "create_card", "params": {"text": "Card title or description", "columnId": "todo"}}]
 \`\`\`
-Available action types: create_card, move_card, modify_card
+
+Available action types:
+- create_card: {"text": "...", "columnId": "todo" | "doing" | "done"}
+- move_card: {"cardId": "...", "targetColumnId": "todo" | "doing" | "done"}
+- modify_card: {"cardId": "...", "text": "new text"}
+
+Always include the action block when the user asks you to create, move, or change cards. Each card needs its own action object in the array.
   `.trim());
 
   return parts.join('\n\n');
