@@ -8,7 +8,7 @@ type IdeaRow = {
   title: string;
   summary: string;
   created_at: string;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 type CardRow = {
@@ -62,9 +62,9 @@ export const mapIdeasWithCards = (
           estimatedHours: card.estimated_hours ?? undefined,
           actualHours: card.actual_hours ?? undefined,
           priority: card.priority ?? undefined,
-          assignedTo: Array.isArray(card.assigned_to) ? card.assigned_to : [],
+          assignedTo: Array.isArray(card.assigned_to) ? (card.assigned_to as string[]) : [],
           createdBy: card.created_by ?? undefined,
-          tags: Array.isArray(card.tags) ? card.tags : [],
+          tags: Array.isArray(card.tags) ? (card.tags as string[]) : [],
         }))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     }));
