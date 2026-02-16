@@ -9,6 +9,8 @@ import { useToast } from './components/Toast';
 import OnboardingTour, { useOnboarding } from './components/OnboardingTour';
 import { useKeyboardShortcut } from './hooks/useKeyboardShortcut';
 import { useFocusTrap } from './hooks/useFocusTrap';
+import { buildCommentCountsMap, mapIdeasWithCards } from './utils/boardMappers';
+import { mapCardUpdatesToDb } from './utils/cardUpdateMapper';
 
 const CardDetailModal = lazy(() => import('./components/CardDetailModal'));
 const SearchModal = lazy(() => import('./components/SearchModal'));
@@ -250,37 +252,16 @@ function App() {
             console.error('Error fetching card comment counts:', commentError);
             showToast(formatSupabaseError(commentError, 'Comments could not be loaded.'), 'warning');
           } else if (commentRows) {
-            commentCountsMap = commentRows.reduce((acc: Record<string, number>, row) => {
-              acc[row.card_id] = (acc[row.card_id] || 0) + 1;
-              return acc;
-            }, {});
+            commentCountsMap = buildCommentCountsMap(commentRows);
           }
         }
 
-        const ideasWithData = ideasData.map(idea => {
-            const ideaCards = cardsData.filter(card => card.idea_id === idea.id);
-            const columns = DEFAULT_COLUMNS_CONFIG.map(colConfig => ({
-                ...colConfig,
-                cards: ideaCards
-                    .filter(card => card.column_id === colConfig.id)
-                    .map(c => ({
-                        id: c.id,
-                        text: c.text,
-                        createdAt: c.created_at,
-                        commentsCount: commentCountsMap[c.id] || 0,
-                        // New collaboration fields
-                        dueDate: c.due_date ?? undefined,
-                        estimatedHours: c.estimated_hours ?? undefined,
-                        actualHours: c.actual_hours ?? undefined,
-                        priority: c.priority ?? undefined,
-                        assignedTo: Array.isArray(c.assigned_to) ? c.assigned_to : [],
-                        createdBy: c.created_by ?? undefined,
-                        tags: Array.isArray(c.tags) ? c.tags : [],
-                    }))
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            }));
-            return { ...idea, columns, createdAt: idea.created_at };
-        });
+        const ideasWithData = mapIdeasWithCards(
+          ideasData,
+          cardsData,
+          commentCountsMap,
+          DEFAULT_COLUMNS_CONFIG
+        );
 
         setIdeas(ideasWithData);
 
@@ -503,18 +484,7 @@ function App() {
       };
     });
 
-    // Map our Card fields to database column names
-    const hasUpdateField = (field: keyof Card) =>
-      Object.prototype.hasOwnProperty.call(updates, field);
-
-    const dbUpdates: any = {};
-    if (hasUpdateField('dueDate')) dbUpdates.due_date = updates.dueDate ?? null;
-    if (hasUpdateField('estimatedHours')) dbUpdates.estimated_hours = updates.estimatedHours ?? null;
-    if (hasUpdateField('actualHours')) dbUpdates.actual_hours = updates.actualHours ?? null;
-    if (hasUpdateField('priority')) dbUpdates.priority = updates.priority ?? null;
-    if (hasUpdateField('assignedTo')) dbUpdates.assigned_to = updates.assignedTo ?? [];
-    if (hasUpdateField('tags')) dbUpdates.tags = updates.tags ?? [];
-    if (hasUpdateField('createdBy')) dbUpdates.created_by = updates.createdBy ?? null;
+    const dbUpdates = mapCardUpdatesToDb(updates);
 
     if (Object.keys(dbUpdates).length === 0) {
       return;
