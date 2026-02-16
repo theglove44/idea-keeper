@@ -30,9 +30,15 @@ export const useCardDragAndEdit = ({
 
   const onDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     if (columnId !== dragOverColumn) {
       setDragOverColumn(columnId);
     }
+  };
+
+  const onDragEnd = () => {
+    setDragInfo(null);
+    setDragOverColumn(null);
   };
 
   const onDrop = (e: React.DragEvent, destinationColumnId: string) => {
@@ -84,6 +90,7 @@ export const useCardDragAndEdit = ({
     onDragStart,
     onDragOver,
     onDrop,
+    onDragEnd,
     handleStartEditingCard,
     handleSaveCardEdit,
     handleCancelCardEdit,

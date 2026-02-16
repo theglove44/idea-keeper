@@ -28,6 +28,7 @@ type CardDetailModalProps = {
   onCardUpdate?: (cardId: string, updates: Partial<Card>) => Promise<void> | void;
   onAddCard?: (ideaId: string, columnId: string, text: string) => Promise<void> | void;
   onMoveCard?: (cardId: string, sourceColumnId: string, destColumnId: string, ideaId: string) => Promise<void> | void;
+  onRefresh?: () => Promise<unknown>;
   onClose: () => void;
 };
 
@@ -39,7 +40,7 @@ const formatTimestamp = (iso: string) => {
   }
 };
 
-const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, idea, columnTitle, columnId, ideaId, ideaTitle, onCommentAdded, onCardUpdate, onAddCard, onMoveCard, onClose }) => {
+const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, idea, columnTitle, columnId, ideaId, ideaTitle, onCommentAdded, onCardUpdate, onAddCard, onMoveCard, onRefresh, onClose }) => {
   const { comments, isLoading, isSubmitting, error, submitComment } = useCardComments(card?.id ?? null);
   const claude = useClaude();
   const normalizedAssignees = Array.isArray(card.assignedTo) ? card.assignedTo : [];
@@ -166,12 +167,14 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, idea, columnTit
   const handleApproveAction = async (action: ClaudeAction, index: number) => {
     if (action.type === 'create_card' && onAddCard) {
       await onAddCard(ideaId, action.params.columnId || 'todo', action.params.text);
+      await onRefresh?.();
       await submitComment(`Created card: "${action.params.text}" in ${action.params.columnId || 'todo'}`, 'Claude');
       onCommentAdded?.(card.id);
     } else if (action.type === 'move_card' && onMoveCard) {
       const destinationColumnId = action.params.columnId || action.params.destColumnId;
       if (destinationColumnId) {
         await onMoveCard(card.id, columnId, destinationColumnId, ideaId);
+        await onRefresh?.();
         await submitComment(`Moved card to ${destinationColumnId}`, 'Claude');
         onCommentAdded?.(card.id);
       }

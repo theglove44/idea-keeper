@@ -675,6 +675,7 @@ function App() {
             onCardUpdate={handleUpdateCard}
             onAddCard={handleAddCardToIdea}
             onMoveCard={handleMoveCard}
+            onRefresh={refreshIdeas}
             onClose={handleCloseCardDetail}
           />
         )}
@@ -717,6 +718,7 @@ function App() {
               selectedIdea={selectedIdea}
               onAddCard={handleAddCardToIdea}
               onMoveCard={handleMoveCard}
+              onRefresh={refreshIdeas}
               onClose={() => setIsClaudePanelOpen(false)}
             />
           )}

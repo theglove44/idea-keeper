@@ -66,6 +66,7 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({
     onDragStart,
     onDragOver,
     onDrop,
+    onDragEnd,
     handleStartEditingCard,
     handleSaveCardEdit,
     handleCancelCardEdit,
@@ -291,6 +292,7 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({
                          key={card.id}
                          draggable={editingCardId !== card.id}
                          onDragStart={(e) => onDragStart(e, card, column.id)}
+                         onDragEnd={onDragEnd}
                          onClick={() => handleCardClick(card, column)}
                          className={`relative group p-3 md:p-3 min-h-[60px] bg-surface-overlay/75 border border-border/70 rounded-lg shadow-card hover:shadow-card-hover hover:bg-surface-overlay active:bg-surface-overlay/95 transition-all duration-300 ease-in-out ${editingCardId !== card.id ? 'cursor-grab active:cursor-grabbing' : ''} animate-card-enter ${
                             dragInfo?.cardId === card.id ? 'opacity-40 scale-105 -rotate-2 ring-2 ring-brand-cyan-400 ring-offset-2 ring-offset-surface-elevated' : ''

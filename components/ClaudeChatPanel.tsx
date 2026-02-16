@@ -20,6 +20,7 @@ type ClaudeChatPanelProps = {
   selectedIdea: Idea | null;
   onAddCard: (ideaId: string, columnId: string, text: string) => Promise<void> | void;
   onMoveCard: (cardId: string, sourceColumnId: string, destColumnId: string, ideaId: string) => Promise<void> | void;
+  onRefresh?: () => Promise<unknown>;
   onClose: () => void;
 };
 
@@ -28,6 +29,7 @@ const ClaudeChatPanel: React.FC<ClaudeChatPanelProps> = ({
   selectedIdea,
   onAddCard,
   onMoveCard,
+  onRefresh,
   onClose,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -89,6 +91,8 @@ const ClaudeChatPanel: React.FC<ClaudeChatPanelProps> = ({
     if (action.type === 'create_card' && selectedIdea) {
       await onAddCard(selectedIdea.id, action.params.columnId || 'todo', action.params.text);
 
+      await onRefresh?.();
+
       const confirmMessage: ChatMessage = {
         id: crypto.randomUUID?.() || Date.now().toString(),
         role: 'assistant',
@@ -103,6 +107,7 @@ const ClaudeChatPanel: React.FC<ClaudeChatPanelProps> = ({
 
       if (cardId && destColumnId) {
         await onMoveCard(cardId, sourceColumnId, destColumnId, selectedIdea.id);
+        await onRefresh?.();
 
         const confirmMessage: ChatMessage = {
           id: crypto.randomUUID?.() || Date.now().toString(),
