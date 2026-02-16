@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { supabase, supabaseInitializationError, formatSupabaseError } from './services/supabaseClient';
+import { supabaseInitializationError, formatSupabaseError } from './services/supabaseClient';
 import { Idea, Card } from './types';
 import Sidebar from './components/Sidebar';
 import IdeaDetail from './components/IdeaDetail';
@@ -9,6 +9,21 @@ import { useToast } from './components/Toast';
 import OnboardingTour, { useOnboarding } from './components/OnboardingTour';
 import { useKeyboardShortcut } from './hooks/useKeyboardShortcut';
 import { useFocusTrap } from './hooks/useFocusTrap';
+import { buildCommentCountsMap, mapIdeasWithCards } from './utils/boardMappers';
+import { mapCardUpdatesToDb } from './utils/cardUpdateMapper';
+import {
+  deleteIdeaRow,
+  fetchCardCommentRows,
+  fetchCardsRows,
+  fetchIdeasRows,
+  insertCardRow,
+  insertCardsRows,
+  insertIdeaRow,
+  moveCardRow,
+  updateCardFieldsRow,
+  updateCardTextRow,
+  updateIdeaRow,
+} from './services/ideaRepository';
 
 const CardDetailModal = lazy(() => import('./components/CardDetailModal'));
 const SearchModal = lazy(() => import('./components/SearchModal'));
@@ -221,17 +236,14 @@ function App() {
 
   useEffect(() => {
     const fetchIdeas = async () => {
-        const { data: ideasData, error: ideasError } = await supabase!
-          .from('ideas')
-          .select('*')
-          .order('created_at', { ascending: false });
+        const { data: ideasData, error: ideasError } = await fetchIdeasRows();
         if (ideasError) {
             console.error("Error fetching ideas:", ideasError);
             showToast(formatSupabaseError(ideasError, 'Failed to load ideas.'), 'error');
             return;
         }
 
-        const { data: cardsData, error: cardsError } = await supabase!.from('cards').select('*');
+        const { data: cardsData, error: cardsError } = await fetchCardsRows();
         if (cardsError) {
             console.error("Error fetching cards:", cardsError);
             showToast(formatSupabaseError(cardsError, 'Failed to load cards.'), 'error');
@@ -241,46 +253,22 @@ function App() {
         const cardIds = cardsData.map(card => card.id);
         let commentCountsMap: Record<string, number> = {};
         if (cardIds.length > 0) {
-          const { data: commentRows, error: commentError } = await supabase!
-            .from('card_comments')
-            .select('card_id')
-            .in('card_id', cardIds);
+          const { data: commentRows, error: commentError } = await fetchCardCommentRows(cardIds);
 
           if (commentError) {
             console.error('Error fetching card comment counts:', commentError);
             showToast(formatSupabaseError(commentError, 'Comments could not be loaded.'), 'warning');
           } else if (commentRows) {
-            commentCountsMap = commentRows.reduce((acc: Record<string, number>, row) => {
-              acc[row.card_id] = (acc[row.card_id] || 0) + 1;
-              return acc;
-            }, {});
+            commentCountsMap = buildCommentCountsMap(commentRows);
           }
         }
 
-        const ideasWithData = ideasData.map(idea => {
-            const ideaCards = cardsData.filter(card => card.idea_id === idea.id);
-            const columns = DEFAULT_COLUMNS_CONFIG.map(colConfig => ({
-                ...colConfig,
-                cards: ideaCards
-                    .filter(card => card.column_id === colConfig.id)
-                    .map(c => ({
-                        id: c.id,
-                        text: c.text,
-                        createdAt: c.created_at,
-                        commentsCount: commentCountsMap[c.id] || 0,
-                        // New collaboration fields
-                        dueDate: c.due_date ?? undefined,
-                        estimatedHours: c.estimated_hours ?? undefined,
-                        actualHours: c.actual_hours ?? undefined,
-                        priority: c.priority ?? undefined,
-                        assignedTo: Array.isArray(c.assigned_to) ? c.assigned_to : [],
-                        createdBy: c.created_by ?? undefined,
-                        tags: Array.isArray(c.tags) ? c.tags : [],
-                    }))
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            }));
-            return { ...idea, columns, createdAt: idea.created_at };
-        });
+        const ideasWithData = mapIdeasWithCards(
+          ideasData,
+          cardsData,
+          commentCountsMap,
+          DEFAULT_COLUMNS_CONFIG
+        );
 
         setIdeas(ideasWithData);
 
@@ -298,11 +286,7 @@ function App() {
         summary: 'A sample idea to help you get started with Idea Keeper',
       };
 
-      const { data, error } = await supabase!
-        .from('ideas')
-        .insert(sampleIdea)
-        .select()
-        .single();
+      const { data, error } = await insertIdeaRow(sampleIdea.title, sampleIdea.summary);
 
       if (error) {
         console.error('Error creating sample idea:', error);
@@ -319,9 +303,7 @@ function App() {
         { text: 'Create project repository', column_id: 'done', idea_id: data.id },
       ];
 
-      const { error: cardsError } = await supabase!
-        .from('cards')
-        .insert(sampleCards);
+      const { error: cardsError } = await insertCardsRows(sampleCards);
 
       if (cardsError) {
         console.error('Error creating sample cards:', cardsError);
@@ -345,7 +327,7 @@ function App() {
   }, [ideas, selectedIdeaId]);
 
   const handleAddIdea = async (title: string, summary: string) => {
-    const { data, error } = await supabase!.from('ideas').insert({ title, summary }).select().single();
+    const { data, error } = await insertIdeaRow(title, summary);
     if (error) {
         console.error("Error adding idea:", error);
         showToast(formatSupabaseError(error, 'Failed to save idea.'), 'error');
@@ -368,7 +350,7 @@ function App() {
 
   const handleDeleteIdea = async (id: string) => {
     // Assuming cascade delete is set up in Supabase for cards
-    const { error } = await supabase!.from('ideas').delete().eq('id', id);
+    const { error } = await deleteIdeaRow(id);
     if (error) {
         console.error("Error deleting idea:", error);
         showToast(formatSupabaseError(error, 'Failed to delete idea.'), 'error');
@@ -385,7 +367,7 @@ function App() {
   };
 
   const handleAddCardToIdea = async (ideaId: string, columnId: string, cardText: string) => {
-    const { data, error } = await supabase!.from('cards').insert({ text: cardText, idea_id: ideaId, column_id: columnId }).select().single();
+    const { data, error } = await insertCardRow(ideaId, columnId, cardText);
      if (error) {
         console.error("Error adding card:", error);
         showToast(formatSupabaseError(error, 'Failed to add card.'), 'error');
@@ -412,7 +394,7 @@ function App() {
     if (!editingIdea) {
       return { success: false, error: 'No idea selected for editing.' };
     }
-    const { error } = await supabase!.from('ideas').update({ title, summary }).eq('id', editingIdea.id);
+    const { error } = await updateIdeaRow(editingIdea.id, title, summary);
      if (error) {
         console.error("Error updating idea:", error);
         showToast(formatSupabaseError(error, 'Failed to update idea.'), 'error');
@@ -449,7 +431,7 @@ function App() {
     });
     setIdeas(tempIdeas);
 
-    const { error } = await supabase!.from('cards').update({ column_id: destColumnId }).eq('id', cardId);
+    const { error } = await moveCardRow(cardId, destColumnId);
     if (error) {
         console.error("Failed to move card:", error);
         showToast(formatSupabaseError(error, 'Failed to move card.'), 'error');
@@ -472,7 +454,7 @@ function App() {
       });
       setIdeas(tempIdeas);
 
-      const { error } = await supabase!.from('cards').update({ text: newText }).eq('id', cardId);
+      const { error } = await updateCardTextRow(cardId, newText);
       if (error) {
           console.error("Failed to edit card:", error);
           showToast(formatSupabaseError(error, 'Failed to update card text.'), 'error');
@@ -503,24 +485,13 @@ function App() {
       };
     });
 
-    // Map our Card fields to database column names
-    const hasUpdateField = (field: keyof Card) =>
-      Object.prototype.hasOwnProperty.call(updates, field);
-
-    const dbUpdates: any = {};
-    if (hasUpdateField('dueDate')) dbUpdates.due_date = updates.dueDate ?? null;
-    if (hasUpdateField('estimatedHours')) dbUpdates.estimated_hours = updates.estimatedHours ?? null;
-    if (hasUpdateField('actualHours')) dbUpdates.actual_hours = updates.actualHours ?? null;
-    if (hasUpdateField('priority')) dbUpdates.priority = updates.priority ?? null;
-    if (hasUpdateField('assignedTo')) dbUpdates.assigned_to = updates.assignedTo ?? [];
-    if (hasUpdateField('tags')) dbUpdates.tags = updates.tags ?? [];
-    if (hasUpdateField('createdBy')) dbUpdates.created_by = updates.createdBy ?? null;
+    const dbUpdates = mapCardUpdatesToDb(updates);
 
     if (Object.keys(dbUpdates).length === 0) {
       return;
     }
 
-    const { error } = await supabase!.from('cards').update(dbUpdates).eq('id', cardId);
+    const { error } = await updateCardFieldsRow(cardId, dbUpdates);
     if (error) {
       console.error("Failed to update card:", error);
       const isMissingCardColumnError =

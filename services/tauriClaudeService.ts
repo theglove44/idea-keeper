@@ -1,5 +1,6 @@
 import { Command } from '@tauri-apps/plugin-shell';
 import { ClaudeContext, ClaudeResponse, ClaudeAction, parseActionsFromMessage } from './claudeService';
+import { buildClaudeSystemPrompt } from '../utils/claudeSystemPrompt';
 
 /**
  * Timeout duration for Claude CLI operations (2 minutes)
@@ -20,60 +21,6 @@ const CLAUDE_SCOPE_NAME = 'claude-local';
  * permission dialogs (Photos, OneDrive, etc.) and eventually timing out.
  */
 const SAFE_CWD = '/tmp';
-
-/**
- * Builds a contextual system prompt for Claude based on the current state.
- *
- * This mirrors the implementation from server/claudePlugin.ts to ensure
- * consistent prompting across browser and Tauri environments.
- */
-const buildSystemPrompt = (context: ClaudeContext): string => {
-  const parts: string[] = [
-    'You are Claude, an AI assistant integrated into a project management tool called "Idea Keeper".'
-  ];
-
-  if (context.ideaTitle) {
-    let projectInfo = `Current project: ${context.ideaTitle}`;
-    if (context.ideaSummary) {
-      projectInfo += ` - ${context.ideaSummary}`;
-    }
-    parts.push(projectInfo);
-  }
-
-  if (context.boardState) {
-    parts.push(`Board state: ${context.boardState}`);
-  }
-
-  if (context.cardText) {
-    let cardInfo = `Current card: ${context.cardText}`;
-    if (context.columnTitle) {
-      cardInfo += ` (in column: ${context.columnTitle})`;
-    }
-    parts.push(cardInfo);
-  }
-
-  if (context.recentComments) {
-    parts.push(`Recent comments: ${context.recentComments}`);
-  }
-
-  parts.push(`
-IMPORTANT: You cannot directly modify the board. To create, move, or modify cards, you MUST include a JSON action block in your response. The user will see these as proposals they can approve or dismiss. Without action blocks, nothing will happen on the board.
-
-To propose actions, include this exact format at the end of your response:
-\`\`\`actions
-[{"type": "create_card", "params": {"text": "Card title or description", "columnId": "todo"}}]
-\`\`\`
-
-Available action types:
-- create_card: {"text": "...", "columnId": "todo" | "doing" | "done"}
-- move_card: {"cardId": "...", "targetColumnId": "todo" | "doing" | "done"}
-- modify_card: {"cardId": "...", "text": "new text"}
-
-Always include the action block when the user asks you to create, move, or change cards. Each card needs its own action object in the array.
-  `.trim());
-
-  return parts.join('\n\n');
-};
 
 /**
  * Invokes Claude CLI directly via Tauri's shell plugin.
@@ -109,7 +56,7 @@ export const tauriSendToClaude = async (
   }
 
   try {
-    const systemPrompt = buildSystemPrompt(context);
+    const systemPrompt = buildClaudeSystemPrompt(context);
 
     // Build CLI arguments
     // --no-session-persistence: don't save session data to disk
