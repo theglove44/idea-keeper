@@ -18,8 +18,8 @@ interface ChatMessage {
 type ClaudeChatPanelProps = {
   ideas: Idea[];
   selectedIdea: Idea | null;
-  onAddCard: (ideaId: string, columnId: string, text: string) => void;
-  onMoveCard: (cardId: string, sourceColumnId: string, destColumnId: string, ideaId: string) => void;
+  onAddCard: (ideaId: string, columnId: string, text: string) => Promise<void> | void;
+  onMoveCard: (cardId: string, sourceColumnId: string, destColumnId: string, ideaId: string) => Promise<void> | void;
   onClose: () => void;
 };
 
@@ -87,7 +87,7 @@ const ClaudeChatPanel: React.FC<ClaudeChatPanelProps> = ({
 
   const handleApproveAction = async (action: ClaudeAction, index: number) => {
     if (action.type === 'create_card' && selectedIdea) {
-      onAddCard(selectedIdea.id, action.params.columnId || 'todo', action.params.text);
+      await onAddCard(selectedIdea.id, action.params.columnId || 'todo', action.params.text);
 
       const confirmMessage: ChatMessage = {
         id: crypto.randomUUID?.() || Date.now().toString(),
@@ -101,8 +101,8 @@ const ClaudeChatPanel: React.FC<ClaudeChatPanelProps> = ({
       const sourceColumnId = action.params.sourceColumnId || 'todo';
       const destColumnId = action.params.columnId || action.params.destColumnId;
 
-      if (cardId) {
-        onMoveCard(cardId, sourceColumnId, destColumnId, selectedIdea.id);
+      if (cardId && destColumnId) {
+        await onMoveCard(cardId, sourceColumnId, destColumnId, selectedIdea.id);
 
         const confirmMessage: ChatMessage = {
           id: crypto.randomUUID?.() || Date.now().toString(),

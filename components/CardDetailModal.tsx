@@ -25,9 +25,9 @@ type CardDetailModalProps = {
   ideaId: string;
   ideaTitle: string;
   onCommentAdded?: (cardId: string) => void;
-  onCardUpdate?: (cardId: string, updates: Partial<Card>) => void;
-  onAddCard?: (ideaId: string, columnId: string, text: string) => void;
-  onMoveCard?: (cardId: string, sourceColumnId: string, destColumnId: string, ideaId: string) => void;
+  onCardUpdate?: (cardId: string, updates: Partial<Card>) => Promise<void> | void;
+  onAddCard?: (ideaId: string, columnId: string, text: string) => Promise<void> | void;
+  onMoveCard?: (cardId: string, sourceColumnId: string, destColumnId: string, ideaId: string) => Promise<void> | void;
   onClose: () => void;
 };
 
@@ -165,13 +165,16 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ card, idea, columnTit
 
   const handleApproveAction = async (action: ClaudeAction, index: number) => {
     if (action.type === 'create_card' && onAddCard) {
-      onAddCard(ideaId, action.params.columnId || 'todo', action.params.text);
+      await onAddCard(ideaId, action.params.columnId || 'todo', action.params.text);
       await submitComment(`Created card: "${action.params.text}" in ${action.params.columnId || 'todo'}`, 'Claude');
       onCommentAdded?.(card.id);
     } else if (action.type === 'move_card' && onMoveCard) {
-      onMoveCard(card.id, columnId, action.params.columnId, ideaId);
-      await submitComment(`Moved card to ${action.params.columnId}`, 'Claude');
-      onCommentAdded?.(card.id);
+      const destinationColumnId = action.params.columnId || action.params.destColumnId;
+      if (destinationColumnId) {
+        await onMoveCard(card.id, columnId, destinationColumnId, ideaId);
+        await submitComment(`Moved card to ${destinationColumnId}`, 'Claude');
+        onCommentAdded?.(card.id);
+      }
     }
     claude.removeAction(index);
   };

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { supabaseInitializationError, formatSupabaseError } from './services/supabaseClient';
+import { supabaseInitializationError, formatSupabaseError, supabase } from './services/supabaseClient';
 import { Idea, Card } from './types';
 import Sidebar from './components/Sidebar';
 import IdeaDetail from './components/IdeaDetail';
@@ -234,88 +234,124 @@ function App() {
 
   const selectedIdea = ideas.find(idea => idea.id === selectedIdeaId) || null;
 
-  useEffect(() => {
-    const fetchIdeas = async () => {
-        const { data: ideasData, error: ideasError } = await fetchIdeasRows();
-        if (ideasError) {
-            console.error("Error fetching ideas:", ideasError);
-            showToast(formatSupabaseError(ideasError, 'Failed to load ideas.'), 'error');
-            return;
+  const refreshIdeas = useCallback(
+    async ({ showErrors = true }: { showErrors?: boolean } = {}) => {
+      const { data: ideasData, error: ideasError } = await fetchIdeasRows();
+      if (ideasError) {
+        console.error('Error fetching ideas:', ideasError);
+        if (showErrors) {
+          showToast(formatSupabaseError(ideasError, 'Failed to load ideas.'), 'error');
         }
-
-        const { data: cardsData, error: cardsError } = await fetchCardsRows();
-        if (cardsError) {
-            console.error("Error fetching cards:", cardsError);
-            showToast(formatSupabaseError(cardsError, 'Failed to load cards.'), 'error');
-            return;
-        }
-
-        const cardIds = cardsData.map(card => card.id);
-        let commentCountsMap: Record<string, number> = {};
-        if (cardIds.length > 0) {
-          const { data: commentRows, error: commentError } = await fetchCardCommentRows(cardIds);
-
-          if (commentError) {
-            console.error('Error fetching card comment counts:', commentError);
-            showToast(formatSupabaseError(commentError, 'Comments could not be loaded.'), 'warning');
-          } else if (commentRows) {
-            commentCountsMap = buildCommentCountsMap(commentRows);
-          }
-        }
-
-        const ideasWithData = mapIdeasWithCards(
-          ideasData,
-          cardsData,
-          commentCountsMap,
-          DEFAULT_COLUMNS_CONFIG
-        );
-
-        setIdeas(ideasWithData);
-
-        // Create sample idea for first-time users
-        const hasSeenSample = localStorage.getItem('has_seen_sample_idea');
-        if (ideasWithData.length === 0 && !hasSeenSample) {
-          createSampleIdea();
-          localStorage.setItem('has_seen_sample_idea', 'true');
-        }
-    };
-
-    const createSampleIdea = async () => {
-      const sampleIdea = {
-        title: '🚀 Building a Mobile App',
-        summary: 'A sample idea to help you get started with Idea Keeper',
-      };
-
-      const { data, error } = await insertIdeaRow(sampleIdea.title, sampleIdea.summary);
-
-      if (error) {
-        console.error('Error creating sample idea:', error);
-        showToast(formatSupabaseError(error, 'Could not create starter idea.'), 'error');
-        return;
+        return null;
       }
 
-      // Create sample cards
-      const sampleCards = [
-        { text: 'Research competitor apps and user needs', column_id: 'backlog', idea_id: data.id },
-        { text: 'Design wireframes and user flows', column_id: 'backlog', idea_id: data.id },
-        { text: 'Set up development environment', column_id: 'todo', idea_id: data.id },
-        { text: 'Implement authentication flow', column_id: 'inprogress', idea_id: data.id },
-        { text: 'Create project repository', column_id: 'done', idea_id: data.id },
-      ];
-
-      const { error: cardsError } = await insertCardsRows(sampleCards);
-
+      const { data: cardsData, error: cardsError } = await fetchCardsRows();
       if (cardsError) {
-        console.error('Error creating sample cards:', cardsError);
-        showToast(formatSupabaseError(cardsError, 'Starter cards could not be created.'), 'warning');
+        console.error('Error fetching cards:', cardsError);
+        if (showErrors) {
+          showToast(formatSupabaseError(cardsError, 'Failed to load cards.'), 'error');
+        }
+        return null;
       }
 
-      // Refresh ideas to show the sample
-      fetchIdeas();
+      const cardIds = cardsData.map((card) => card.id);
+      let commentCountsMap: Record<string, number> = {};
+      if (cardIds.length > 0) {
+        const { data: commentRows, error: commentError } = await fetchCardCommentRows(cardIds);
+
+        if (commentError) {
+          console.error('Error fetching card comment counts:', commentError);
+          if (showErrors) {
+            showToast(formatSupabaseError(commentError, 'Comments could not be loaded.'), 'warning');
+          }
+        } else if (commentRows) {
+          commentCountsMap = buildCommentCountsMap(commentRows);
+        }
+      }
+
+      const ideasWithData = mapIdeasWithCards(
+        ideasData,
+        cardsData,
+        commentCountsMap,
+        DEFAULT_COLUMNS_CONFIG
+      );
+      setIdeas(ideasWithData);
+      return ideasWithData;
+    },
+    [showToast]
+  );
+
+  const createSampleIdea = useCallback(async () => {
+    const sampleIdea = {
+      title: '🚀 Building a Mobile App',
+      summary: 'A sample idea to help you get started with Idea Keeper',
     };
 
-    fetchIdeas();
-  }, []);
+    const { data, error } = await insertIdeaRow(sampleIdea.title, sampleIdea.summary);
+    if (error) {
+      console.error('Error creating sample idea:', error);
+      showToast(formatSupabaseError(error, 'Could not create starter idea.'), 'error');
+      return;
+    }
+
+    const sampleCards = [
+      { text: 'Research competitor apps and user needs', column_id: 'backlog', idea_id: data.id },
+      { text: 'Design wireframes and user flows', column_id: 'backlog', idea_id: data.id },
+      { text: 'Set up development environment', column_id: 'todo', idea_id: data.id },
+      { text: 'Implement authentication flow', column_id: 'inprogress', idea_id: data.id },
+      { text: 'Create project repository', column_id: 'done', idea_id: data.id },
+    ];
+
+    const { error: cardsError } = await insertCardsRows(sampleCards);
+    if (cardsError) {
+      console.error('Error creating sample cards:', cardsError);
+      showToast(formatSupabaseError(cardsError, 'Starter cards could not be created.'), 'warning');
+    }
+
+    await refreshIdeas({ showErrors: false });
+  }, [refreshIdeas, showToast]);
+
+  useEffect(() => {
+    const initializeIdeas = async () => {
+      const ideasWithData = await refreshIdeas();
+      if (!ideasWithData) return;
+
+      const hasSeenSample = localStorage.getItem('has_seen_sample_idea');
+      if (ideasWithData.length === 0 && !hasSeenSample) {
+        await createSampleIdea();
+        localStorage.setItem('has_seen_sample_idea', 'true');
+      }
+    };
+
+    void initializeIdeas();
+  }, [createSampleIdea, refreshIdeas]);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (refreshTimeout) return;
+      refreshTimeout = setTimeout(() => {
+        refreshTimeout = null;
+        void refreshIdeas({ showErrors: false });
+      }, 150);
+    };
+
+    const channel = supabase
+      .channel('idea-keeper-board-refresh')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ideas' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cards' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'card_comments' }, scheduleRefresh)
+      .subscribe();
+
+    return () => {
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+      }
+      void supabase.removeChannel(channel);
+    };
+  }, [refreshIdeas]);
 
   useEffect(() => {
     if (!selectedIdeaId && ideas.length > 0) {
@@ -341,7 +377,7 @@ function App() {
       columns: DEFAULT_COLUMNS_CONFIG.map(col => ({ ...col, cards: [] })),
       createdAt: data.created_at,
     };
-    setIdeas([newIdea, ...ideas]);
+    setIdeas((prevIdeas) => [newIdea, ...prevIdeas]);
     setSelectedIdeaId(newIdea.id);
     setIsAddingNewIdea(false);
     showToast('Idea created successfully.', 'success');
@@ -357,12 +393,8 @@ function App() {
         return;
     }
 
-    const updatedIdeas = ideas.filter(idea => idea.id !== id);
-    setIdeas(updatedIdeas);
-
-    if (selectedIdeaId === id) {
-      setSelectedIdeaId(updatedIdeas.length > 0 ? updatedIdeas[0].id : null);
-    }
+    setIdeas((prevIdeas) => prevIdeas.filter((idea) => idea.id !== id));
+    setSelectedIdeaId((prevSelected) => (prevSelected === id ? null : prevSelected));
     showToast('Idea deleted.', 'success');
   };
 
@@ -375,19 +407,17 @@ function App() {
     }
     const newCard: Card = { id: data.id, text: data.text, createdAt: data.created_at, commentsCount: 0 };
 
-    const updatedIdeas = ideas.map(idea => {
-      if (idea.id === ideaId) {
-        const updatedColumns = idea.columns.map(column => {
-          if (column.id === columnId) {
-            return { ...column, cards: [newCard, ...column.cards] };
-          }
-          return column;
-        });
+    setIdeas((prevIdeas) =>
+      prevIdeas.map((idea) => {
+        if (idea.id !== ideaId) {
+          return idea;
+        }
+        const updatedColumns = idea.columns.map((column) =>
+          column.id === columnId ? { ...column, cards: [newCard, ...column.cards] } : column
+        );
         return { ...idea, columns: updatedColumns };
-      }
-      return idea;
-    });
-    setIdeas(updatedIdeas);
+      })
+    );
   };
   
   const handleSaveEditedIdea = async (title: string, summary: string) => {
@@ -400,81 +430,80 @@ function App() {
         showToast(formatSupabaseError(error, 'Failed to update idea.'), 'error');
         return { success: false, error: formatSupabaseError(error, 'Failed to update idea.') };
     }
-    setIdeas(ideas.map(idea => idea.id === editingIdea.id ? { ...idea, title, summary } : idea));
+    setIdeas((prevIdeas) =>
+      prevIdeas.map((idea) => (idea.id === editingIdea.id ? { ...idea, title, summary } : idea))
+    );
     setEditingIdea(null);
     showToast('Idea updated successfully.', 'success');
     return { success: true };
   };
 
   const handleMoveCard = async (cardId: string, sourceColumnId: string, destColumnId: string, ideaId: string) => {
-    const originalIdeas = ideas;
-    // Optimistic update
-    let cardToMove: Card | undefined;
-    const tempIdeas = ideas.map(idea => {
-        if (idea.id === ideaId) {
-            const newColumns = idea.columns.map(c => ({ ...c, cards: [...c.cards] }));
-            const sourceCol = newColumns.find(c => c.id === sourceColumnId);
-            const destCol = newColumns.find(c => c.id === destColumnId);
-
-            if (!sourceCol || !destCol) return idea;
-
-            const cardIndex = sourceCol.cards.findIndex(c => c.id === cardId);
-            if (cardIndex > -1) {
-                [cardToMove] = sourceCol.cards.splice(cardIndex, 1);
-                if (cardToMove) {
-                    destCol.cards.unshift(cardToMove);
-                }
-            }
-            return { ...idea, columns: newColumns };
+    setIdeas((prevIdeas) =>
+      prevIdeas.map((idea) => {
+        if (idea.id !== ideaId) {
+          return idea;
         }
-        return idea;
-    });
-    setIdeas(tempIdeas);
+
+        const newColumns = idea.columns.map((column) => ({ ...column, cards: [...column.cards] }));
+        const sourceCol = newColumns.find((column) => column.id === sourceColumnId);
+        const destCol = newColumns.find((column) => column.id === destColumnId);
+        if (!sourceCol || !destCol) {
+          return idea;
+        }
+
+        const cardIndex = sourceCol.cards.findIndex((card) => card.id === cardId);
+        if (cardIndex > -1) {
+          const [cardToMove] = sourceCol.cards.splice(cardIndex, 1);
+          if (cardToMove) {
+            destCol.cards.unshift(cardToMove);
+          }
+        }
+
+        return { ...idea, columns: newColumns };
+      })
+    );
 
     const { error } = await moveCardRow(cardId, destColumnId);
     if (error) {
         console.error("Failed to move card:", error);
         showToast(formatSupabaseError(error, 'Failed to move card.'), 'error');
-        setIdeas(originalIdeas); // Revert on error
+        await refreshIdeas({ showErrors: false });
     }
   };
 
   const handleEditCard = async (cardId: string, newText: string, ideaId: string) => {
-      const originalIdeas = ideas;
-      // Optimistic update
-      const tempIdeas = ideas.map(idea => {
-          if (idea.id === ideaId) {
-              const newColumns = idea.columns.map(column => ({
-                  ...column,
-                  cards: column.cards.map(card => card.id === cardId ? { ...card, text: newText } : card)
-              }));
-              return { ...idea, columns: newColumns };
+      setIdeas((prevIdeas) =>
+        prevIdeas.map((idea) => {
+          if (idea.id !== ideaId) {
+            return idea;
           }
-          return idea;
-      });
-      setIdeas(tempIdeas);
+          const newColumns = idea.columns.map((column) => ({
+            ...column,
+            cards: column.cards.map((card) => (card.id === cardId ? { ...card, text: newText } : card)),
+          }));
+          return { ...idea, columns: newColumns };
+        })
+      );
 
       const { error } = await updateCardTextRow(cardId, newText);
       if (error) {
           console.error("Failed to edit card:", error);
           showToast(formatSupabaseError(error, 'Failed to update card text.'), 'error');
-          setIdeas(originalIdeas); // Revert
+          await refreshIdeas({ showErrors: false });
       }
   };
 
   const handleUpdateCard = async (cardId: string, updates: Partial<Card>) => {
-    const originalIdeas = ideas;
-    // Optimistic update
-    const tempIdeas = ideas.map(idea => ({
-      ...idea,
-      columns: idea.columns.map(column => ({
-        ...column,
-        cards: column.cards.map(card => (
-          card.id === cardId ? { ...card, ...updates } : card
-        ))
+    setIdeas((prevIdeas) =>
+      prevIdeas.map((idea) => ({
+        ...idea,
+        columns: idea.columns.map((column) => ({
+          ...column,
+          cards: column.cards.map((card) => (card.id === cardId ? { ...card, ...updates } : card)),
+        })),
       }))
-    }));
-    setIdeas(tempIdeas);
+    );
 
     // Also update the selected card context if this is the current card
     setSelectedCardContext(prev => {
@@ -508,15 +537,7 @@ function App() {
       } else {
         showToast(formatSupabaseError(error, 'Failed to update card details.'), 'error');
       }
-      setIdeas(originalIdeas); // Revert on error
-      // Also revert selected card context
-      const originalIdea = originalIdeas.find(i => i.columns.some(c => c.cards.some(card => card.id === cardId)));
-      if (originalIdea) {
-        const originalCard = originalIdea.columns.flatMap(c => c.cards).find(c => c.id === cardId);
-        if (originalCard && selectedCardContext?.card.id === cardId) {
-          setSelectedCardContext(prev => prev ? { ...prev, card: originalCard } : null);
-        }
-      }
+      await refreshIdeas({ showErrors: false });
     }
   };
 
