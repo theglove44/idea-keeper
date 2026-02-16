@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Idea, Card, Column } from '../types';
 import Icon from './Icon';
 import { LoadingSpinner, LoadingCards } from './LoadingSkeleton';
 import EmptyState from './EmptyState';
 import CardBadges from './CardBadges';
+import { useIdeaBoardFilters } from '../hooks/useIdeaBoardFilters';
+import { useCardDragAndEdit } from '../hooks/useCardDragAndEdit';
 
 type IdeaDetailProps = {
   idea: Idea | null;
@@ -18,11 +20,6 @@ type IdeaDetailProps = {
   onOpenShortcuts: () => void;
 };
 
-type DragInfo = {
-  cardId: string;
-  sourceColumnId: string;
-} | null;
-
 const IdeaDetail: React.FC<IdeaDetailProps> = ({
   idea,
   onAddCard,
@@ -35,81 +32,48 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({
   onOpenShortcuts,
 }) => {
   const [newCardText, setNewCardText] = useState('');
-  const [targetColumnId, setTargetColumnId] = useState<string>('');
-  const [filterQuery, setFilterQuery] = useState('');
-  const [showOverdueOnly, setShowOverdueOnly] = useState(false);
-  const [showHighPriorityOnly, setShowHighPriorityOnly] = useState(false);
-  const [showAssignedOnly, setShowAssignedOnly] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
-  const [dragInfo, setDragInfo] = useState<DragInfo>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
-  const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [editingCardText, setEditingCardText] = useState<string>('');
 
   const [brainstormingCard, setBrainstormingCard] = useState<Card | null>(null);
   const [brainstormResult, setBrainstormResult] = useState<string | null>(null);
   const [isCardAILoading, setIsCardAILoading] = useState(false);
 
-  useEffect(() => {
-    if (!idea?.columns?.length) {
-      setTargetColumnId('');
-      return;
-    }
-    if (!targetColumnId || !idea.columns.some((column) => column.id === targetColumnId)) {
-      setTargetColumnId(idea.columns[0].id);
-    }
-  }, [idea, targetColumnId]);
+  const {
+    targetColumnId,
+    setTargetColumnId,
+    filterQuery,
+    setFilterQuery,
+    showOverdueOnly,
+    setShowOverdueOnly,
+    showHighPriorityOnly,
+    setShowHighPriorityOnly,
+    showAssignedOnly,
+    setShowAssignedOnly,
+    boardStats,
+    hasActiveFilters,
+    filteredColumns,
+    clearFilters,
+  } = useIdeaBoardFilters(idea);
 
-  const boardStats = useMemo(() => {
-    if (!idea) {
-      return { total: 0, done: 0, overdue: 0 };
-    }
-    const allCards = idea.columns.flatMap((column) => column.cards);
-    const doneCards = idea.columns.find((column) => column.id === 'done')?.cards.length || 0;
-    const now = Date.now();
-    const overdueCards = allCards.filter((card) => {
-      if (!card.dueDate) return false;
-      const due = new Date(card.dueDate).getTime();
-      return Number.isFinite(due) && due < now;
-    }).length;
-    return { total: allCards.length, done: doneCards, overdue: overdueCards };
-  }, [idea]);
-
-  const hasActiveFilters =
-    filterQuery.trim().length > 0 || showOverdueOnly || showHighPriorityOnly || showAssignedOnly;
-
-  const filteredColumns = useMemo(() => {
-    if (!idea) return [];
-
-    const query = filterQuery.trim().toLowerCase();
-    const now = Date.now();
-
-    const isCardOverdue = (card: Card) => {
-      if (!card.dueDate) return false;
-      const due = new Date(card.dueDate).getTime();
-      return Number.isFinite(due) && due < now;
-    };
-
-    return idea.columns.map((column) => {
-      const filteredCards = column.cards.filter((card) => {
-        const matchesQuery =
-          !query ||
-          card.text.toLowerCase().includes(query) ||
-          (card.tags || []).some((tag) => tag.toLowerCase().includes(query));
-        const matchesOverdue = !showOverdueOnly || isCardOverdue(card);
-        const matchesPriority = !showHighPriorityOnly || card.priority === 'high' || card.priority === 'critical';
-        const matchesAssigned = !showAssignedOnly || (card.assignedTo?.length || 0) > 0;
-
-        return matchesQuery && matchesOverdue && matchesPriority && matchesAssigned;
-      });
-
-      return {
-        ...column,
-        filteredCards,
-      };
-    });
-  }, [idea, filterQuery, showAssignedOnly, showHighPriorityOnly, showOverdueOnly]);
+  const {
+    dragInfo,
+    dragOverColumn,
+    setDragOverColumn,
+    editingCardId,
+    editingCardText,
+    setEditingCardText,
+    onDragStart,
+    onDragOver,
+    onDrop,
+    handleStartEditingCard,
+    handleSaveCardEdit,
+    handleCancelCardEdit,
+  } = useCardDragAndEdit({
+    ideaId: idea?.id ?? null,
+    onMoveCard,
+    onEditCard,
+  });
 
   const handleAddCard = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,58 +96,6 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({
     }
   };
   
-  const onDragStart = (e: React.DragEvent, card: Card, sourceColumnId: string) => {
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', card.id);
-    setDragInfo({ cardId: card.id, sourceColumnId });
-  };
-
-  const onDragOver = (e: React.DragEvent, columnId: string) => {
-    e.preventDefault();
-    if (columnId !== dragOverColumn) {
-        setDragOverColumn(columnId);
-    }
-  };
-
-  const onDrop = (e: React.DragEvent, destinationColumnId: string) => {
-    e.preventDefault();
-    if (!dragInfo || !idea) return;
-
-    const { cardId, sourceColumnId } = dragInfo;
-
-    if (sourceColumnId !== destinationColumnId) {
-      onMoveCard(cardId, sourceColumnId, destinationColumnId, idea.id);
-    }
-    
-    setDragInfo(null);
-    setDragOverColumn(null);
-  };
-
-  const handleStartEditingCard = (card: Card) => {
-    setEditingCardId(card.id);
-    setEditingCardText(card.text);
-  };
-
-  const handleSaveCardEdit = () => {
-    if (!idea || !editingCardId) return;
-    
-    const trimmedText = editingCardText.trim();
-    if (trimmedText === '') {
-        handleCancelCardEdit();
-        return;
-    }
-    
-    onEditCard(editingCardId, trimmedText, idea.id);
-
-    setEditingCardId(null);
-    setEditingCardText('');
-  };
-
-  const handleCancelCardEdit = () => {
-      setEditingCardId(null);
-      setEditingCardText('');
-  };
-
   const handleCardBrainstorm = async (card: Card) => {
     if (!idea) return;
     setBrainstormingCard(card);
@@ -334,12 +246,7 @@ const IdeaDetail: React.FC<IdeaDetailProps> = ({
             {hasActiveFilters && (
               <button
                 type="button"
-                onClick={() => {
-                  setFilterQuery('');
-                  setShowOverdueOnly(false);
-                  setShowHighPriorityOnly(false);
-                  setShowAssignedOnly(false);
-                }}
+                onClick={clearFilters}
                 className="px-2.5 py-1.5 rounded-full text-xs border border-border text-text-tertiary hover:text-text-secondary hover:bg-surface-overlay transition-colors"
               >
                 Clear Filters
